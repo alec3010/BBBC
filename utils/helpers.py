@@ -1,6 +1,14 @@
 import os
 import pickle
 import torch
+import yaml
+
+
+def get_params(pth):
+        with open(pth) as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+            
+            return config
 
 def process_data_pomdp(train, val):
     """

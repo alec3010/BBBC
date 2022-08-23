@@ -1,0 +1,6 @@
+agents: 
+ - InvertedPendulum-v2
+datasets_dir: './data'
+
+tensorboard_dir: './tensorboard'
+train_val_split: 0.1

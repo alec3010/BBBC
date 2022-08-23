@@ -1,16 +1,16 @@
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import numpy as np
-
-from pomdpbc import POMDPBC
+from trainers.belief_module_bc import BeliefModuleBC
+from trainers.naive_model_bc import NaiveModelBC
 
 import utils.helpers as h
 
 if __name__ == "__main__":
 
     # read data    
-    train, val = h.train_val_split_pomdp()
-    bc = POMDPBC(lr=0.001, belief_dim=64, action_dim=1, obs_dim=2, actor_hidden_dim=64)
+    
+    # mdpbc = MDPBehaviorCloner(acs_dim=1, obs_dim=2)
 
-    bc.train_model(train, val, batch_size=8)
+    # mdpbc.train_policy()
+
+    pomdpbc = BeliefModuleBC("InvertedPendulum-v2")
+
+    pomdpbc.train_policy()

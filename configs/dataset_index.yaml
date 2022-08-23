@@ -1,0 +1,12 @@
+InvertedPendulum-v2: 
+  db:  
+    pomdp: data/sac_demo_InvertedPendulum_final_pomdp.pickle
+    mdp: data/sac_demo_InvertedPendulum_final_mdp.pickle
+  obs_dim:
+    pomdp: 2
+    mdp: 4
+  acs_dim: 1
+
+
+
+

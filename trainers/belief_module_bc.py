@@ -3,42 +3,42 @@ import numpy as np
 import torch
 #from torch.utils.tensorboard import SummaryWriter
 
-from models import POMDPModel
+import models as m
+from trainers.behaviorcloner import BehaviorCloner
+
+import utils.helpers as h
 
 
-
-
-class POMDPBC():
-    def __init__(self, belief_dim, action_dim, obs_dim, actor_hidden_dim, lr) -> None:
-        self.agent = POMDPModel(belief_dim=belief_dim, 
-                                  obs_dim=obs_dim, 
-                                  actor_hidden_dim=actor_hidden_dim, 
-                                  action_dim=action_dim).cuda()
+class BeliefModuleBC(BehaviorCloner):
+    def __init__(self, env_name) -> None:
+        super(BeliefModuleBC, self).__init__(env_name=env_name)
+        self.agent = m.model_factory("belief", obs_dim=self.obs_dim, acs_dim=self.acs_dim)
+        self.init_optimizer()
         #self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.traj_nr = 0
-        self.init_state = torch.cuda.DoubleTensor(belief_dim).fill_(0)
-        self.init_ac = torch.cuda.DoubleTensor(action_dim).fill_(0) 
-        self.curr_ob = torch.cuda.DoubleTensor(obs_dim).fill_(0)
+        self.init_state = torch.cuda.DoubleTensor(self.agent.belief_dim).fill_(0)
+        self.init_ac = torch.cuda.DoubleTensor(self.acs_dim).fill_(0) 
+        self.curr_ob = torch.cuda.DoubleTensor(self.obs_dim).fill_(0)
         self.curr_memory = {
-        'curr_ob': curr_ob,    # o_t
-        'prev_belief': init_state,   # b_{t-1}
-        'prev_ac': init_ac,  # a_{t-1}
-        'prev_ob': curr_ob.clone(), # o_{t-1}
+        'curr_ob': self.curr_ob,    # o_t
+        'prev_belief': self.init_state,   # b_{t-1}
+        'prev_ac': self.init_ac,  # a_{t-1}
+        'prev_ob': self.curr_ob.clone(), # o_{t-1}
         }
+        
+        self.process_data()
 
         
 
-    def train(self, train, val, batch_size,model_dir="./models", tensorboard_dir="./tensorboard"):
-    
-    
+    def train_policy(self):
         print("... train model")
         self.agent.train()
 
         n_iters = 0
         train_loss, train_cor = 0,0
-        for epoch in range(5):
+        for epoch in range(self.episodes):
 
-            for traj in train:
+            for traj in self.train:
                 
                 for point in traj:
 
@@ -51,19 +51,22 @@ class POMDPBC():
                     self.curr_memory['prev_obs'] = point['obs']
                     
                     loss = self.criterion(outputs, targets) # mse loss
+                    
                     loss.backward(retain_graph=True) # backprop
                     self.optimizer.step() # adam optim, gradient updates
 
                     train_loss+=loss.item()
                     n_iters+=1
                     # self.writer.add_scalar("Loss/train", loss.item(), n_iters)
-                
-    
-                print(f'average train trajectory loss: {(train_loss / n_iters)}')
+                    self.writer.add_scalar("Loss/train", loss.item(), n_iters)   
+            print("average train trajectory loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
+            train_loss = 0
 
             
             self.traj_nr += 1
-                #print(f'average train batch accuracy: {(train_cor / (batch_size*n_iters))}')
+
+    def eval_policy():
+        pass  
                 
         # form data loader for validation (currently predicts on whole valid set)
         # valid_loss, valid_acc = 0,0
@@ -84,3 +87,19 @@ class POMDPBC():
         
         torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
         print("Model saved in file: %s" % model_dir)
+
+    def process_data(self):
+
+        
+        self.train, self.val = self.train_val_split()
+
+        for traj in self.train:
+            for point in traj:
+                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
+                point["obs"], point["acs"] = tmp_x.cuda(), tmp_y.cuda()
+            
+        for traj in self.val:
+            for point in traj:
+                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
+                point["obs"], point["acs"] = tmp_x.cuda(), tmp_y.cuda()
+

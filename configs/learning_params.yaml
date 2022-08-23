@@ -1,0 +1,9 @@
+prev_acs: True
+model_dir: './models'
+learning_rate: 0.001
+belief_dim: 64
+actor_hidden_dim: 16
+batch_size: 32
+episodes: 500
+process_model: "pomdp"
+network_arch: "belief"
