@@ -7,4 +7,5 @@ batch_size: 32
 epochs: 500
 process_model: "pomdp"
 network_arch: "belief"
-eval_interval: 1 
+eval_interval: 10 
+shuffle: True
