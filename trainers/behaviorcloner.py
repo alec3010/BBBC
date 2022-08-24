@@ -46,7 +46,8 @@ class BehaviorCloner():
         self.lr = self.config['learning_rate']
         self.process_model = self.config['process_model']
         self.network_arch = self.config['network_arch']
-        self.episodes = self.config['episodes']
+        self.epochs = self.config['epochs']
+        self.eval_int = self.config['eval_interval']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
