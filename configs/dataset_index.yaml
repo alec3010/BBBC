@@ -1,12 +1,60 @@
 InvertedPendulum-v2: 
   db:  
-    pomdp: data/sac_demo_InvertedPendulum_final_pomdp.pickle
+    pomdp: data/sac_demo_InvertedPendulum_final_pomdp_old.pickle
     mdp: data/sac_demo_InvertedPendulum_final_mdp.pickle
   obs_dim:
-    pomdp: 2
-    mdp: 4
+    pomdp: [0,1]
+    mdp: [0,1,2,3]
   acs_dim: 1
 
+InvertedDoublePendulum-v2:
+db:  
+  pomdp: data/sac_demo_Hopper-v2_final_pomdp_10_1.pickle
+  mdp: data/sac_demo_Hopper-v2_final_mdp_10_1.pickle
+obs_dim:
+  pomdp: [0,1,2,3,4,8,9,10]  
+  mdp: [0,1,2,3,4,5,6,7,8,9,10]
+acs_dim: 1
 
+HalfCheetah-v2:
+  db:  
+    pomdp: data/sac_demo_HalfCheetah-v2_final_pomdp_10_1.pickle
+    mdp: data/sac_demo_HalfCheetah-v2_final_mdp_10_1.pickle
+  obs_dim:
+    pomdp: [0,1,2,3,4,5,6,7]
+    mdp: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+  acs_dim: 6
+
+Hopper-v2:
+  db:  
+    pomdp: data/sac_demo_Hopper-v2_final_pomdp_10_1.pickle
+    mdp: data/sac_demo_Hopper-v2_final_mdp_10_1.pickle
+  obs_dim:
+    pomdp: [0,1,2,3,4]
+    mdp: [0,1,2,3,4,5,6,7,8,9,10]
+  acs_dim: 3
+
+Walker2d-v2:
+  db:  
+    pomdp: data/sac_demo_Hopper-v2_final_pomdp_10_1.pickle
+    mdp: data/sac_demo_Hopper-v2_final_mdp_10_1.pickle
+  obs_dim:
+    pomdp: [0,1,2,3,4,5,6,7]
+    mdp: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+  acs_dim: 6
+
+Swimmer2d-v2:
+  db:  
+    pomdp: data/sac_demo_Hopper-v2_final_pomdp_10_1.pickle
+    mdp: data/sac_demo_Hopper-v2_final_mdp_10_1.pickle
+  obs_dim:
+    pomdp: [0,1,2,3,4]
+    mdp: [0,1,2,3,4,5,6,7]
+  acs_dim: 2
+ 
+
+
+
+    
 
 

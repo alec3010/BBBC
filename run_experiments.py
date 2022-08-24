@@ -5,6 +5,8 @@ import utils.helpers as h
 
 if __name__ == "__main__":
 
+
+
     # read data    
     
     # mdpbc = MDPBehaviorCloner(acs_dim=1, obs_dim=2)
@@ -17,6 +19,6 @@ if __name__ == "__main__":
 
     if configs['network_arch'] == "belief":
         
-        bc = BeliefModuleBC("InvertedPendulum-v2")
+        bc = BeliefModuleBC("InvertedPendulum-v2", 10)
 
     bc.train_policy()

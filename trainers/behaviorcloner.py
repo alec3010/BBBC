@@ -27,6 +27,7 @@ class BehaviorCloner():
         f = open(data_file,'rb')
         data = pickle.load(f)
         n_samples = len(data)
+
         idx = int((1-self.frac) * n_samples)
         # split data into training and validation set
         
@@ -54,13 +55,13 @@ class BehaviorCloner():
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
         entry = dataset_idx[self.env_name]
-        print(entry)
         self.db_path = entry['db'][self.process_model]
-        self.obs_dim = entry['obs_dim'][self.process_model]
+        self.obs_dim = len(entry['obs_dim'][self.process_model])
         self.acs_dim = entry['acs_dim']
+        self.idx_list = entry['obs_dim'][self.process_model]
 
     def eval_on_env(self):
-        eval_env = EvaluationEnvironment(self.agent, self.env_name)
+        eval_env = EvaluationEnvironment(self.agent, self.env_name, self.idx_list)
         avg_reward = eval_env.eval()
 
         return avg_reward

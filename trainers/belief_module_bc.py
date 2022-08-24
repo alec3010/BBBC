@@ -10,7 +10,7 @@ import utils.helpers as h
 
 
 class BeliefModuleBC(BehaviorCloner):
-    def __init__(self, env_name) -> None:
+    def __init__(self, env_name, length) -> None:
         super(BeliefModuleBC, self).__init__(env_name=env_name)
         self.agent = m.model_factory("belief", obs_dim=self.obs_dim, acs_dim=self.acs_dim)
         self.init_optimizer()
@@ -18,7 +18,7 @@ class BeliefModuleBC(BehaviorCloner):
         self.traj_nr = 0
         
         self.reset_memory()
-        self.process_data()
+        self.process_data(length)
 
         
 
@@ -58,6 +58,8 @@ class BeliefModuleBC(BehaviorCloner):
             
             if epoch%self.eval_int == 0:
                 self.eval_policy()
+                
+        self.reset_memory()
         reward = self.eval_on_env()
 
         print('Reward on Environment: %f' % reward )
@@ -88,20 +90,28 @@ class BeliefModuleBC(BehaviorCloner):
         
         
 
-    def process_data(self):
+    def process_data(self, length):
 
         
-        self.train, self.val = self.train_val_split()
-
-        for traj in self.train:
-            for point in traj:
-                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
-                point["obs"], point["acs"] = tmp_x.cuda(), tmp_y.cuda()
+        train, val = self.train_val_split()
+        self.train = []
+        self.val = []
+        for _ in train:
+            traj = []
+            for i in range(length):
+                tmp_x, tmp_y = torch.from_numpy(_[i]["obs"].astype(float)), torch.from_numpy(_[i]["acs"].astype(float)) 
+                _[i]["obs"], _[i]["acs"] = tmp_x.cuda(), tmp_y.cuda()
+                traj.append(_[i])
+            self.train.append(traj)
             
-        for traj in self.val:
-            for point in traj:
-                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
-                point["obs"], point["acs"] = tmp_x.cuda(), tmp_y.cuda()
+        for _ in val:
+            traj=[]
+            for i in range(length):
+                tmp_x, tmp_y = torch.from_numpy(_[i]["obs"].astype(float)), torch.from_numpy(_[i]["acs"].astype(float)) 
+                _[i]["obs"], _[i]["acs"] = tmp_x.cuda(), tmp_y.cuda()
+                traj.append(_[i])
+            self.val.append(traj)
+        
 
     def reset_memory(self):
         self.init_state = torch.cuda.DoubleTensor(self.agent.belief_dim).fill_(0)
