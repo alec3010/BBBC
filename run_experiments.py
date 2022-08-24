@@ -10,7 +10,13 @@ if __name__ == "__main__":
     # mdpbc = MDPBehaviorCloner(acs_dim=1, obs_dim=2)
 
     # mdpbc.train_policy()
+    configs = h.get_params("./configs/learning_params.yaml")
+    if configs['network_arch'] == "naive":
 
-    pomdpbc = BeliefModuleBC("InvertedPendulum-v2")
+        bc = NaiveModelBC("InvertedPendulum-v2")
 
-    pomdpbc.train_policy()
+    if configs['network_arch'] == "belief":
+        
+        bc = BeliefModuleBC("InvertedPendulum-v2")
+
+    bc.train_policy()
