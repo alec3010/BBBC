@@ -13,6 +13,7 @@ from trainers.behaviorcloner import BehaviorCloner
 
 
 
+
 class NaiveModelBC(BehaviorCloner):
     def __init__(self, env_name) -> None:
         super(NaiveModelBC, self).__init__(env_name=env_name)
@@ -48,9 +49,12 @@ class NaiveModelBC(BehaviorCloner):
 
             if epoch%self.eval_int == 0:
                 self.eval_policy()
-                
-    
             print(f'average train batch loss: {(train_loss / n_iters)}')
+        
+        reward = self.eval_on_env()
+
+        print('Reward on Environment: %f' % reward )
+
             
 
     def eval_policy(self):
@@ -72,6 +76,8 @@ class NaiveModelBC(BehaviorCloner):
                 n_iters+=1
 
             print(f'valid set loss: {valid_loss/n_iters}')
+
+    
         
     def process_data(self):
 

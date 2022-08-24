@@ -6,6 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import models as m
 from utils import helpers as h
+from eval_env import EvaluationEnvironment
 
 class BehaviorCloner():
 
@@ -38,7 +39,6 @@ class BehaviorCloner():
         self.criterion = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
-
         torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
 
     def get_params(self):
@@ -58,6 +58,12 @@ class BehaviorCloner():
         self.db_path = entry['db'][self.process_model]
         self.obs_dim = entry['obs_dim'][self.process_model]
         self.acs_dim = entry['acs_dim']
+
+    def eval_on_env(self):
+        eval_env = EvaluationEnvironment(self.agent, self.env_name)
+        avg_reward = eval_env.eval()
+
+        return avg_reward
         
         
 

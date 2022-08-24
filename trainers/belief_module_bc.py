@@ -58,9 +58,12 @@ class BeliefModuleBC(BehaviorCloner):
             
             if epoch%self.eval_int == 0:
                 self.eval_policy()
+        reward = self.eval_on_env()
 
-        torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
-        print("Model saved in file: %s" % model_dir)
+        print('Reward on Environment: %f' % reward )
+
+        #torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
+        #print("Model saved in file: %s" % model_dir)
 
     def eval_policy(self):
         self.reset_memory()
