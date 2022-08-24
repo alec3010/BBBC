@@ -48,6 +48,8 @@ class BehaviorCloner():
         self.network_arch = self.config['network_arch']
         self.epochs = self.config['epochs']
         self.eval_int = self.config['eval_interval']
+        self.shuffle = self.config['shuffle']
+        self.batch_size = self.config['batch_size']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
