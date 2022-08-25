@@ -37,7 +37,6 @@ if __name__ == "__main__":
                 for env in configs['experiment']['envs']:
                     
                     result = quick_test(env, l_config)
-                    print(result)
                     results.append(result)
                     
     
