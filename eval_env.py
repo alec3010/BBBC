@@ -5,7 +5,8 @@ import torch
 from utils import helpers as h
 
 class EvaluationEnvironment:
-    def __init__(self, agent, env_name, obs_idx_list) -> None:
+    def __init__(self, agent, env_name, obs_idx_list, config) -> None:
+        self.config = config
         self.env_name = env_name    
         self.agent = agent
         self.get_params()
@@ -19,8 +20,6 @@ class EvaluationEnvironment:
         
         
         self.env = gym.make(env_name)
-
-        
 
     def eval(self):
 
@@ -54,6 +53,8 @@ class EvaluationEnvironment:
             tensor_action, belief = self.agent(self.curr_memory)
             a = tensor_action.detach().cpu().numpy()[0]
 
+            
+
             self.curr_memory['prev_belief'] = belief.detach()
             self.curr_memory['prev_ac'] = tensor_action
             self.curr_memory['prev_obs'] = self.curr_memory['curr_ob']
@@ -80,7 +81,7 @@ class EvaluationEnvironment:
             obs = []
             for idx in self.idx_list:
                 obs.append(state[idx])
-                print(len(obs))
+
             input = torch.cuda.FloatTensor(obs) 
 
             tensor_action = self.agent(input)
@@ -100,7 +101,6 @@ class EvaluationEnvironment:
         return episode_reward
 
     def get_params(self):
-        self.config = h.get_params("./configs/learning_params.yaml")
         self.lr = self.config['learning_rate']
         self.process_model = self.config['process_model']
         self.network_arch = self.config['network_arch']

@@ -15,9 +15,9 @@ from trainers.behaviorcloner import BehaviorCloner
 
 
 class NaiveModelBC(BehaviorCloner):
-    def __init__(self, env_name) -> None:
-        super(NaiveModelBC, self).__init__(env_name=env_name)
-        self.agent = m.model_factory(self.network_arch, self.obs_dim, self.acs_dim)
+    def __init__(self, env_name, configs) -> None:
+        super(NaiveModelBC, self).__init__(env_name=env_name, configs=configs)
+        self.agent = m.model_factory(self.network_arch, self.obs_dim, self.acs_dim, configs=configs)
         self.optimizer = torch.optim.Adam(self.agent.parameters())# adam optimization
         self.criterion = torch.nn.MSELoss()# MSE loss
         self.process_data()
@@ -47,7 +47,7 @@ class NaiveModelBC(BehaviorCloner):
             
             self.writer.add_scalar("Loss/train", (train_loss/n_iters), epoch)
 
-            if epoch%self.eval_int == 0:
+            if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 self.eval_policy()
             print(f'average train batch loss: {(train_loss / n_iters)}')
         
@@ -90,14 +90,16 @@ class NaiveModelBC(BehaviorCloner):
 
         for traj in train:
             for point in traj:
-                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
+                obs = self.occlusion(point)
+                tmp_x, tmp_y = obs, torch.from_numpy(point["acs"].astype(float)) 
                 train_x.append(tmp_x.cuda())
                 train_y.append(tmp_y.cuda())
 
             
         for traj in val:
             for point in traj:
-                tmp_x, tmp_y = torch.from_numpy(point["obs"].astype(float)), torch.from_numpy(point["acs"].astype(float)) 
+                obs = self.occlusion(point)
+                tmp_x, tmp_y = obs, torch.from_numpy(point["acs"].astype(float)) 
                 val_x.append(tmp_x.cuda())
                 val_y.append(tmp_y.cuda())
 

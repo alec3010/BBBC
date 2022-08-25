@@ -1,11 +1,18 @@
-prev_acs: True
-model_dir: './models'
-learning_rate: 0.001
-belief_dim: 64
-actor_hidden_dim: 16
-batch_size: 32
-epochs: 5
-process_model: "pomdp"
-network_arch: "belief"
-eval_interval: 10 
-shuffle: True
+learning_params:  
+  prev_acs: True
+  learning_rate: 0.001
+  belief_dim: 64
+  actor_hidden_dim: 16
+  batch_size: 32
+  epochs: 500
+  process_model: "pomdp"
+  network_arch: "belief"
+  eval_interval: 10 
+  shuffle: True
+  traj_length: 100
+experiment:
+  envs: ['HalfCheetah-v2', 'Swimmer-v2', 'Hopper-v2', 'InvertedPendulum-v2', 'Walker2d-v2', 'InvertedDoublePendulum-v2']
+  traj_lengths: [10, 100, 1000]
+  belief_dims: [4, 8, 16, 32, 64, 128, 256]
+  prev_acs: [True, False]
+  archs: ["naive", "belief"]
