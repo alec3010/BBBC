@@ -17,10 +17,10 @@ def quick_test(env, configs):
         
     bc.train_policy()
     result = bc.get_results()
+    
 
     return result
     
-
 
 
 if __name__ == "__main__":
@@ -28,38 +28,48 @@ if __name__ == "__main__":
     configs = h.get_params("./configs/learning_params.yaml")
     l_config=configs['learning_params']
     
-    for mode in configs['experiment']['prev_acs']:
-        l_config['prev_acs'] = mode
+    for _ in [True]:
+        print(_)
+        l_config['prev_acs'] = _
+        
         for dim in configs['experiment']['belief_dims']:
             l_config['belief_dim'] = dim
             for length in configs['experiment']['traj_lengths']:
                 l_config['traj_length'] = length
-                for env in configs['experiment']['envs']:
-                    
+                for env in configs['experiment']['envs']: 
+                    print("belief dim in config: ", l_config['prev_acs'])
                     result = quick_test(env, l_config)
+                    print("belief dim in result: ", result['learning_params']['prev_acs'])
                     results.append(result)
-                    
+                    print("belief dim in lass list item: ", results[-1]['learning_params']['prev_acs'])
+                    print("####################################################################################################################################")
+                
     
-    configs = h.get_params("./configs/learning_params.yaml")
-    configs['network_arch'] = 'naive'
-    configs['process_model'] = 'pomdp'
-    for length in configs['experiment']['traj_lengths']:
-        l_config['traj_length'] = length
-        for env in configs['experiment']['envs']:
+    # configs = h.get_params("./configs/learning_params.yaml")
+    # l_config=configs['learning_params']
+    # l_config['network_arch'] = 'naive'
+    # l_config['process_model'] = 'pomdp'
+    # for length in configs['experiment']['traj_lengths']:
+    #     l_config['traj_length'] = length
+    #     for env in configs['experiment']['envs']:
             
-            result = quick_test(env, l_config)
-            results.append(result)
-    configs['process_model'] = 'mdp'
-    for length in configs['experiment']['traj_lengths']:
-        l_config['traj_length'] = length
-        for env in configs['experiment']['envs']:
+    #         result = quick_test(env, l_config)
+    #         results.append(result)
+    # configs['process_model'] = 'mdp'
+    # for length in configs['experiment']['traj_lengths']:
+    #     l_config['traj_length'] = length
+    #     for env in configs['experiment']['envs']:
             
-            result = quick_test(env, l_config)
-            results.append(result)
+    #         result = quick_test(env, l_config)
+    #         results.append(result)
 
 
-    with open('results/results.pkl', 'wb') as f:
-        pickle.dump(resuls, f)    
+    for i in range(len(results)):
+        print(results[i]['learning_params'])
+        print(len(results[i]['train_loss']['epoch']))
+
+    with open('results/results__acs.pkl', 'wb') as f:
+        pickle.dump(results, f)    
 
     
 
