@@ -11,7 +11,10 @@ from eval_env import EvaluationEnvironment
 class BehaviorCloner():
 
     def __init__(self, env_name, configs) -> None:
+        print("Creating Behavior cloner Object")
+        
         self.config = configs
+        print("Configs are: ","\n" , self.config)
 
         self.env_name = env_name
         self.get_params()
@@ -89,6 +92,7 @@ class BehaviorCloner():
         self.result_dict = {}
         self.result_dict['env'] = self.env_name
         self.result_dict['learning_params'] = self.config
+        
         self.result_dict['train_loss'] = {}
         self.result_dict['train_loss']['epoch'] = []
         self.result_dict['train_loss']['value'] = []
@@ -98,6 +102,7 @@ class BehaviorCloner():
         self.result_dict['reward'] = 0
 
     def get_results(self):
+        print(self.result_dict['learning_params'])
         return self.result_dict
 
     
