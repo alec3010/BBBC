@@ -1,5 +1,5 @@
 InvertedPendulum-v2:
-  db: data/sac_demo_InvertedPendulum-v2.pickle
+  db: data/LQRKalman_demo_InvertedPendulum_1000.pickle
   obs_dim:
     pomdp: [0,1]
     mdp: [0,1,2,3]
