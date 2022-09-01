@@ -9,10 +9,10 @@ import pickle
 def quick_test(env, configs):
     print(env)
     
-    if configs['network_arch'] == "naive":
+    if configs['network_arch'] == "FF":
         bc = NaiveModelBC(env, configs=configs)
 
-    if configs['network_arch'] == "belief":
+    if configs['network_arch'] == "RNNFF":
         bc = BeliefModuleBC(env, configs=configs)
         
     bc.train_policy()
@@ -24,25 +24,25 @@ def quick_test(env, configs):
 
 
 if __name__ == "__main__":
+    
     results = []
     configs = h.get_params("./configs/learning_params.yaml")
     l_config=configs['learning_params']
+    env = "InvertedPendulum-v2"
+    quick_test(env, l_config)
     
-    for _ in [True]:
-        print(_)
-        l_config['prev_acs'] = _
+    # for _ in [False]:
+    #     print(_)
+    #     l_config['prev_acs'] = _
         
-        for dim in configs['experiment']['belief_dims']:
-            l_config['belief_dim'] = dim
-            for length in configs['experiment']['traj_lengths']:
-                l_config['traj_length'] = length
-                for env in configs['experiment']['envs']: 
-                    print("belief dim in config: ", l_config['prev_acs'])
-                    result = quick_test(env, l_config)
-                    print("belief dim in result: ", result['learning_params']['prev_acs'])
-                    results.append(result)
-                    print("belief dim in lass list item: ", results[-1]['learning_params']['prev_acs'])
-                    print("####################################################################################################################################")
+    #     for dim in configs['experiment']['belief_dims']:
+    #         l_config['belief_dim'] = dim
+    #         for length in configs['experiment']['traj_lengths']:
+    #             l_config['traj_length'] = length
+    #             for env in configs['experiment']['envs']: 
+    #                 result = quick_test(env, l_config)
+    #                 results.append(result)
+    #                 print("####################################################################################################################################")
                 
     
     # configs = h.get_params("./configs/learning_params.yaml")
@@ -64,12 +64,12 @@ if __name__ == "__main__":
     #         results.append(result)
 
 
-    for i in range(len(results)):
-        print(results[i]['learning_params'])
-        print(len(results[i]['train_loss']['epoch']))
+    # for i in range(len(results)):
+    #     print(results[i]['learning_params'])
+    #     print(len(results[i]['train_loss']['epoch']))
 
-    with open('results/results__acs.pkl', 'wb') as f:
-        pickle.dump(results, f)    
+    # with open('results/results__.pkl', 'wb') as f:
+    #     pickle.dump(results, f)    
 
     
 
