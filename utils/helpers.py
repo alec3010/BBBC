@@ -1,8 +1,5 @@
-import os
-import pickle
-import torch
 import yaml
-
+import random
 
 def get_params(pth):
         with open(pth) as f:
@@ -63,3 +60,14 @@ def process_data_mdp(train, val):
     val_y =torch.cat(val_acs, 0).type(torch.cuda.FloatTensor)
     
     return train_x, train_y, val_x, val_y
+
+def add_noise(states):
+    
+    noise_val = 0.002
+    
+    for i in range(len(states-1)):
+        noise = (random.random()*2 - 1) * noise_val
+        states[i] += noise
+    
+    return states
+    

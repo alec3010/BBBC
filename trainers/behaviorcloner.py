@@ -73,6 +73,11 @@ class BehaviorCloner():
 
         return avg_reward
 
+    def eval_on_ss(self):
+        eval_env = EvaluationEnvironment(self.agent, self.env_name, self.idx_list, self.config)
+        eval_env.eval_ss()
+
+
     def occlusion(self, point):
         if self.process_model == "pomdp":
             _ = []
