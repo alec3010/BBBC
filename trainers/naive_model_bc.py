@@ -6,7 +6,7 @@ import os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-import models as m
+import models.models as m
 
 from trainers.behaviorcloner import BehaviorCloner
 
@@ -33,7 +33,7 @@ class NaiveModelBC(BehaviorCloner):
 
         
         for epoch in range(self.epochs):
-            train_loss, train_cor = 0,0
+            train_loss=0
             n_iters=0
             train_loader = torch.utils.data.DataLoader(train_dataset,batch_size = self.batch_size, shuffle=self.shuffle)
             for batch_idx, (inputs,targets) in enumerate(train_loader):
@@ -49,13 +49,15 @@ class NaiveModelBC(BehaviorCloner):
 
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 self.eval_policy()
-            print(f'average train batch loss: {(train_loss / n_iters)}')
+
+            print("average train batch loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
+            self.result_dict['train_loss']['epoch'].append(epoch + 1)
+            self.result_dict['train_loss']['value'].append(train_loss/n_iters)
+            train_loss = 0
         
         reward = self.eval_on_env()
 
         print('Reward on Environment: %f' % reward )
-
-            
 
     def eval_policy(self):
         val_dataset = torch.utils.data.TensorDataset(self.val_x, self.val_y)
@@ -75,9 +77,7 @@ class NaiveModelBC(BehaviorCloner):
                 valid_loss += self.criterion(valid_outputs,valid_targets).item()
                 n_iters+=1
 
-            print(f'valid set loss: {valid_loss/n_iters}')
-
-    
+            print(f'valid set loss: {valid_loss/n_iters}')    
         
     def process_data(self):
 
