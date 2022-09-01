@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import matplotlib as plt
 
-resuts = []
+results = []
 with open('results/results.pkl', 'rb') as f:
     results = pickle.load(f)
 
