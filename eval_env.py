@@ -1,6 +1,10 @@
 import gym
 import mujoco_py
 import torch
+import numpy as np
+from scipy import signal
+import math
+import matplotlib.pyplot as plt
 
 from utils import helpers as h
 
@@ -21,84 +25,182 @@ class EvaluationEnvironment:
         
         self.env = gym.make(env_name)
 
-    def eval(self):
+    def eval_mjc(self):
 
         episode_rewards = []
-        if self.network_arch == "belief":
-            for i in range(self.n_test_episodes):
-                episode_reward = self.run_episode_belief()
-                episode_rewards.append(episode_reward)
-        if self.network_arch == "naive":
-            for i in range(self.n_test_episodes):
-                episode_reward = self.run_episode_naive()
-                episode_rewards.append(episode_reward)
+        for i in range(self.n_test_episodes):
+            episode_reward = self.run_episode()
+            episode_rewards.append(episode_reward)
 
         return sum(episode_rewards)/len(episode_rewards)
 
-    def run_episode_belief(self, max_timesteps=500):
+    def eval_ss(self):
+        t_final      = 100
+
+        dt_plant     = 0.1
+        dt_control   = 0.1
+
+        t_plant   = np.arange(0, t_final, dt_plant)
+        t_control = np.arange(0, t_final, dt_control)
+
+        M_Cart  = 0.5
+        M_Arm   = 0.2
+        length  = 0.3
+        b       = 0.1
+        g       = 9.8
+        I       = (1/3)*M_Arm*(length**2)
+
+        P = ( I*(M_Cart+M_Arm) + (M_Cart*M_Arm*length**2) )
+
+        A32 = ( (M_Arm**2)*g*(length**2) ) / P
+        A33 = ( -(I+M_Arm*(length**2))*b ) /  P
+        A42 = ( M_Arm*g*length*(M_Cart+M_Arm) ) / P
+        A43 = ( -(M_Arm*length*b) ) / P
+
+        B3 = ( I + M_Arm*(length**2) ) / P
+        B4 = ( M_Arm*length ) / P
+
+        A = np.array([[0, 0, 1, 0],
+              [0, 0, 0, 1],
+              [0, A32, A33, 0],
+              [0, A42, A43, 0]])
+
+        B = np.array([[0], [0], [B3], [B4]])
+        
+        C = np.array([[1, 0, 0, 0],
+              [0, 1, 0, 0]])
+
+        D = np.array([[0],[0]])
+
+        inverse_pendulum_plant = signal.StateSpace(A, B, C, D)
+
+        inverse_pendulum_plant_d = inverse_pendulum_plant.to_discrete(dt_plant)
+        A_discrete = inverse_pendulum_plant_d.A
+        B_discrete = inverse_pendulum_plant_d.B
+
+
+
+
+        x         = float(0.0)
+        theta     = float(0.0)
+        x_dot     = float(0.0)
+        theta_dot = float(1.0)
+        states = np.array([[x], [theta],[x_dot], [theta_dot]])
+        states_l = np.copy(states)
+
+        full_step = int(dt_control/dt_plant)
+        steps = math.ceil(t_final/dt_control)
+
+        states_coll   = [[],[],[],[]]  # real states
+        states_coll_n = [[],[],[],[]]  # states w/ noise 
+        control_force_coll = []
+        self.agent.eval_mode()    
+
+        print('starting eval loop')   
+
+        for i in range(0, steps):
+        
+            measurement = h.add_noise(states_l)
+            
+            z = np.array([ [states_l[0,0]], [states_l[1,0]] ])
+
+            # here agent:
+            with torch.no_grad():
+                assert np.isnan(z).any() == False
+                assert np.isinf(z).any() == False
+                
+                input = torch.cuda.FloatTensor(z).squeeze(1)
+                assert torch.isnan(input).any()==False 
+                if torch.isinf(input).any():
+                    print(input)
+                    print(z)
+                assert torch.isinf(input).any()==False
+                
+                tensor_action = self.agent(input)
+                assert torch.isnan(tensor_action).any()==False and torch.isinf(tensor_action).any()==False
+                control_force = tensor_action.detach().cpu().numpy()[0]
+                print(control_force)
+
+            control_force_coll = np.append(control_force_coll, control_force)
+            
+            states_coll_n = np.append(states_coll_n, measurement,axis=1)
+             # Update states with ss eqs
+            assert np.isnan(states_l).any()==False
+            assert np.isnan(A).any()==False
+            assert np.isnan(B_discrete).any()==False
+            assert np.isnan(control_force)==False
+            states = np.matmul(A_discrete, states_l) + B_discrete*control_force
+            assert np.isnan(states).any()==False
+            assert np.max(states) < 10
+            if np.min(states) < -10:
+                print(i)
+                print(states)
+                print(control_force)
+            assert np.min(states) > -10
+            
+            
+            # Collect variables to plot
+            states_coll = np.append(states_coll, states_l,axis=1)
+            
+            # Store info for next iteration
+            states_l = states
+            
+
+               
+
+        fig, axs = plt.subplots(2)
+
+        axs[0].plot(t_plant, states_coll[:][0], label='x')
+        axs[0].plot(t_plant, states_coll[:][1], label='theta')
+        axs[0].plot(t_plant, states_coll[:][2], label='x_dot')
+        axs[0].plot(t_plant, states_coll[:][3], label='theta_dot')
+
+        axs[0].legend(loc='best', shadow=True, framealpha=1)
+
+        axs[1].plot(t_control, control_force_coll, label = 'Control Force')
+        axs[1].plot(t_plant,  -states_coll[:][2],  label = 'Error')
+
+        axs[1].legend(loc='best', shadow=True, framealpha=1)
+
+        plt.show()
+
+
+
+    def run_episode_mjc(self, max_timesteps=500):
     
         episode_reward = 0
         step = 0
 
         state = self.env.reset()
+        #self.agent.reset_memory()
+        self.agent.eval_mode()
         while True:
         
             # get action
-            self.agent.eval()
+            
             obs = []
             for idx in self.idx_list:
                 obs.append(state[idx])
-            self.curr_memory['curr_ob'] = torch.cuda.FloatTensor(obs)    
+            input = torch.cuda.FloatTensor(obs)    
             
-            tensor_action, belief = self.agent(self.curr_memory)
-            a = tensor_action.detach().cpu().numpy()[0]
-
-            
-
-            self.curr_memory['prev_belief'] = belief.detach()
-            self.curr_memory['prev_ac'] = tensor_action
-            self.curr_memory['prev_obs'] = self.curr_memory['curr_ob']
-
-            next_state, r, done, info = self.env.step(a)   
-            episode_reward += r       
-            state = next_state
-            step += 1
-            
-            if self.rendering:
-                env.render()
-
-            if step > max_timesteps: 
-                break
-
-        return episode_reward
-
-    def run_episode_naive(self, max_timesteps=500):
-        episode_reward = 0
-        step = 0
-        state = self.env.reset()
-        self.agent.eval()
-        while True:
-            obs = []
-            for idx in self.idx_list:
-                obs.append(state[idx])
-
-            input = torch.cuda.FloatTensor(obs) 
-
             tensor_action = self.agent(input)
             a = tensor_action.detach().cpu().numpy()[0]
 
+
             next_state, r, done, info = self.env.step(a)   
             episode_reward += r       
             state = next_state
             step += 1
-
-            if self.rendering:
-                env.render()
+            
+            self.env.render()
 
             if step > max_timesteps: 
                 break
 
         return episode_reward
+
+        
+
 
     def get_params(self):
         self.lr = self.config['learning_rate']
