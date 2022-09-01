@@ -1,19 +1,19 @@
 learning_params:  
   prev_acs: True
   learning_rate: 0.001
-  belief_dim: 64
-  actor_hidden_dim: 64
+  belief_dim: 16 #16
+  actor_hidden_dim: 128 #16
   decoder_hidden : [64, 64]
   batch_size: 32
-  epochs: 5
+  epochs: 500
   process_model: "pomdp"
-  network_arch: "belief"
+  network_arch: "RNNFF"
   eval_interval: 10 
   shuffle: True
-  traj_length: 100
+  traj_length: 30
 experiment:
-  envs: ['InvertedPendulum-v2'] 
+  envs: ['InvertedDoublePendulum-v2'] 
   traj_lengths: [10]
-  belief_dims: [4, 16, 64]
-  prev_acs: [True, False]
+  belief_dims: [16]
+  prev_acs: [True]
   archs: ["naive", "belief"]
