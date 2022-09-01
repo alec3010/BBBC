@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-import models as m
 from utils import helpers as h
 from eval_env import EvaluationEnvironment
 
@@ -85,7 +84,7 @@ class BehaviorCloner():
             #print(obs.size())
         if self.process_model == "mdp":
             #print("mdp")
-            obs = torch.from_numpy(point['obs']).float()
+            obs = torch.cuda.FloatTensor(point['obs']).float()
         return obs
 
     def reset_results(self):
