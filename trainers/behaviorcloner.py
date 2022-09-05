@@ -4,8 +4,11 @@ import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
+from utils.pytorchtools import EarlyStopping
 from utils import helpers as h
+from utils.data_loader import DataLoader
 from eval_env import EvaluationEnvironment
+import models.models as m
 
 class BehaviorCloner():
 
@@ -13,35 +16,100 @@ class BehaviorCloner():
         print("Creating Behavior cloner Object")
         
         self.config = configs
-        print("Configs are: ","\n" , self.config)
-
-        self.env_name = env_name
         self.get_params()
+        self.env_name = env_name
         self.load_dataset_idx()
+        print("Configs are: ","\n" , self.config)
+        self.agent = m.model_factory(configs['network_arch'], obs_dim=self.obs_dim, acs_dim=self.acs_dim, configs=configs)
+        
+        self.init_optimizer()
+        
+        self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path, self.split)
         self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.model_dir = "./models"
         
-        self.frac = 0.1
         self.reset_results()
+
+    def train_policy(self):
+        # stopper = EarlyStopping(patience=100, verbose=True)
+        print("... train model")
+        self.agent.train()
+        steps = 0
+        for epoch in range(self.epochs):
+            print("Create new data loader")
+            loader = DataLoader(self.train_x, 
+                                   self.train_y, 
+                                   self.seq_length, 
+                                   self.idx_list,
+                                   self.network_arch)
+            n_iters = 0
+            train_loss = 0.0
+            
+            for (x, y) in loader:
+                if self.network_arch == "RNNFF":
+                    outputs, hidden = self.agent(x) # agent, pytorch
+                elif self.network_arch == "FF":
+                    outputs = self.agent(x) # agent, pytorch
+                loss = self.criterion(outputs.float(), y.float()) # mse loss
+                self.optimizer.zero_grad() # reset weights
+                loss.backward() # backprop
+                self.optimizer.step() # adam optim, gradient update
+                
+                train_loss+=loss.item() * x.size(0)
+                print(x.shape)
+                n_iters+=1
+                steps += 1
+           
+            self.writer.add_scalar("Loss/train", (train_loss/len(self.train_x)), epoch + 1)   
+            #print("average train trajectory loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
+            self.result_dict['train_loss']['epoch'].append(epoch + 1)
+            self.result_dict['train_loss']['value'].append(train_loss/len(self.train_x))
+            
+            if (epoch+1)%self.eval_int == 0 and epoch != 0:
+                val_loss = self.eval_policy(epoch)
+                self.writer.add_scalar("Loss/val", (val_loss), epoch + 1)   
+                # stopper(val_loss, self.agent)
+                # if stopper.early_stop:
+                #     print("Early stop")
+                #     break
+        
+        #reward = self.eval_on_ss()
+        self.eval_on_env()
+        #print('Reward on Environment: %f' % reward )
+
+    def eval_policy(self, epoch):
+        print("Create new data loader")
+        loader = DataLoader(self.val_x,
+                               self.val_y,
+                               self.seq_length, 
+                               self.idx_list,
+                               self.network_arch)
+        
+        valid_loss= 0.0
+        self.agent.eval()
+        for (x, y) in loader:
+            
+            if self.network_arch == "RNNFF":
+                outputs, hidden = self.agent(x) # agent, pytorch
+            elif self.network_arch == "FF":
+                outputs = self.agent(x) # agent, pytorch
+            loss = self.criterion(outputs, y) # mse loss
+            valid_loss += loss.item() * x.size(0)
+            
+
+        avg_loss = valid_loss/len(loader)
+        print('Validation Loss in Epoch {}: {}'.format(epoch+1, avg_loss))
+        self.result_dict['val_loss']['epoch'].append(epoch + 1)
+        self.result_dict['val_loss']['value'].append(avg_loss)
+            #print(f'valid set accuracy: {valid_acc}')
+
+        self.agent.train()
+        return avg_loss
         
    
 
     
-    def train_val_split(self):
-        print("... read data")
-        data_file = os.path.join(self.db_path)
-    
-         
-        f = open(data_file,'rb')
-        data = pickle.load(f)
-        n_samples = len(data)
 
-        idx = int((1-self.frac) * n_samples)
-        # split data into training and validation set
-        
-        train = data[:idx]
-        val = data[idx:]
-        return train, val
     
     def init_optimizer(self):
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
@@ -58,6 +126,8 @@ class BehaviorCloner():
         self.eval_int = self.config['eval_interval']
         self.shuffle = self.config['shuffle']
         self.batch_size = self.config['batch_size']
+        self.seq_length = self.config['seq_length']
+        self.split = self.config['split']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
@@ -69,8 +139,8 @@ class BehaviorCloner():
 
     def eval_on_env(self):
         eval_env = EvaluationEnvironment(self.agent, self.env_name, self.idx_list, self.config)
-        avg_reward = eval_env.eval()
-
+        avg_reward = eval_env.eval_mjc()
+        
         return avg_reward
 
     def eval_on_ss(self):
@@ -78,19 +148,7 @@ class BehaviorCloner():
         eval_env.eval_ss()
 
 
-    def occlusion(self, point):
-        if self.process_model == "pomdp":
-            _ = []
-            for idx in self.idx_list:
 
-                _.append(point['obs'][idx].item())
-            
-            obs = torch.cuda.FloatTensor(_)
-            #print(obs.size())
-        if self.process_model == "mdp":
-            #print("mdp")
-            obs = torch.cuda.FloatTensor(point['obs']).float()
-        return obs
 
     def reset_results(self):
         self.result_dict = {}
@@ -108,6 +166,10 @@ class BehaviorCloner():
     def get_results(self):
         print(self.result_dict['learning_params'])
         return self.result_dict
+
+    
+
+    
 
     
 
