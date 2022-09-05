@@ -11,12 +11,15 @@ from utils import helpers as h
 class EvaluationEnvironment:
     def __init__(self, agent, env_name, obs_idx_list, config) -> None:
         self.config = config
+        
+        self.belief_dim = config['belief_dim']
         self.env_name = env_name    
         self.agent = agent
         self.get_params()
         self.rendering = False                      
         self.n_test_episodes = 10
         self.idx_list = obs_idx_list
+        self.hidden = None #torch.cuda.DoubleTensor(1,self.belief_dim).fill_(0)
               
         self.reset_memory()  
 
@@ -29,7 +32,7 @@ class EvaluationEnvironment:
 
         episode_rewards = []
         for i in range(self.n_test_episodes):
-            episode_reward = self.run_episode()
+            episode_reward = self.run_episode_mjc()
             episode_rewards.append(episode_reward)
 
         return sum(episode_rewards)/len(episode_rewards)
@@ -173,7 +176,8 @@ class EvaluationEnvironment:
 
         state = self.env.reset()
         #self.agent.reset_memory()
-        self.agent.eval_mode()
+        self.agent.eval()
+        self.hidden = None
         while True:
         
             # get action
@@ -181,9 +185,15 @@ class EvaluationEnvironment:
             obs = []
             for idx in self.idx_list:
                 obs.append(state[idx])
-            input = torch.cuda.FloatTensor(obs)    
+            input_ = torch.cuda.FloatTensor(obs).unsqueeze(0)   
+
+            if self.network_arch == "RNNFF":
+        
+                tensor_action, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+            elif self.network_arch == "FF":
+                tensor_action = self.agent(input_)
+
             
-            tensor_action = self.agent(input)
             a = tensor_action.detach().cpu().numpy()[0]
 
 
@@ -196,6 +206,7 @@ class EvaluationEnvironment:
 
             if step > max_timesteps: 
                 break
+        
 
         return episode_reward
 
