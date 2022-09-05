@@ -1,5 +1,6 @@
 from trainers.belief_module_bc import BeliefModuleBC
 from trainers.naive_model_bc import NaiveModelBC
+from trainers.behaviorcloner import BehaviorCloner
 
 import utils.helpers as h
 
@@ -8,13 +9,7 @@ import pickle
 
 def quick_test(env, configs):
     print(env)
-    
-    if configs['network_arch'] == "FF":
-        bc = NaiveModelBC(env, configs=configs)
-
-    if configs['network_arch'] == "RNNFF":
-        bc = BeliefModuleBC(env, configs=configs)
-        
+    bc = BehaviorCloner(env, configs=configs)
     bc.train_policy()
     result = bc.get_results()
     
