@@ -1,3 +1,4 @@
+from sre_parse import State
 import gym
 import mujoco_py
 import torch
@@ -5,8 +6,10 @@ import numpy as np
 from scipy import signal
 import math
 import matplotlib.pyplot as plt
+import control
 
 from utils import helpers as h
+from utils.LQR import LQR
 
 class EvaluationEnvironment:
     def __init__(self, agent, env_name, obs_idx_list, config) -> None:
@@ -39,10 +42,10 @@ class EvaluationEnvironment:
 
     def eval_ss(self):
         self.hidden = None
-        t_final      = 100
+        t_final      = 1000
 
-        dt_plant     = 0.1
-        dt_control   = 0.1
+        dt_plant     = 0.02
+        dt_control   = 0.02
 
         t_plant   = np.arange(0, t_final, dt_plant)
         t_control = np.arange(0, t_final, dt_control)
@@ -53,6 +56,17 @@ class EvaluationEnvironment:
         b       = 0.1
         g       = 9.8
         I       = (1/3)*M_Arm*(length**2)
+
+        #  LQR
+
+        q11 = 5000      
+        q22 = 100       
+                
+        r   = 10        
+                
+        Q = np.diagflat([q11, q22, 0, 0])
+                
+        R = np.array([r])       
 
         P = ( I*(M_Cart+M_Arm) + (M_Cart*M_Arm*length**2) )
 
@@ -82,13 +96,22 @@ class EvaluationEnvironment:
         A_discrete = inverse_pendulum_plant_d.A
         B_discrete = inverse_pendulum_plant_d.B
 
+        K, S, E = control.lqr(A, B, Q, R)
+        #K[0,0] = 0 #no constraint on x
+        #K[0,1] = 0 #no constraint on x_dot
+        controller = LQR(K, 
+                            max_input = 20, 
+                            max_input_on = False)
+
+
+
 
 
 
         x         = float(0.0)
         theta     = float(0.0)
         x_dot     = float(0.0)
-        theta_dot = float(1.0)
+        theta_dot = float(0.0)
         states = np.array([[x], [theta],[x_dot], [theta_dot]])
         states_l = np.copy(states)
 
@@ -105,31 +128,26 @@ class EvaluationEnvironment:
         for i in range(0, steps):
         
             measurement = h.add_noise(states_l)
+            if self.process_model == "mdp":
+                z = np.array([[ measurement[0,0], measurement[1,0], measurement[2,0], measurement[3,0]]])
+            if self.process_model == "pomdp":
+                z = np.array([[ measurement[0,0], measurement[1,0]]])
+            input_ = torch.cuda.FloatTensor(z)
             
-            z = np.array([ [states_l[0,0]], [states_l[1,0]] ])
 
-            assert np.isnan(z).any() == False
-            assert np.isinf(z).any() == False
+            if self.network_arch == "RNNFF":
+                tensor_action, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+            elif self.network_arch == "FF":
+                tensor_action = self.agent(input_) # agent, pytorch
             
-            input = torch.cuda.FloatTensor(z).squeeze()
-            input = input.unsqueeze(0)
-            assert torch.isnan(input).any()==False 
-            assert torch.isinf(input).any()==False
-            
-            tensor_action, self.hidden = self.agent(input, self.hidden)
-            assert torch.isnan(tensor_action).any()==False and torch.isinf(tensor_action).any()==False
             control_force = tensor_action.detach().cpu().numpy()[0]
 
-            control_force_coll = np.append(control_force_coll, control_force)
-            
+            # control_force = controller.calc_force(measurement)
+            control_force_coll = np.append(control_force_coll, control_force)    
             states_coll_n = np.append(states_coll_n, measurement,axis=1)
-             # Update states with ss eqs
-            assert np.isnan(states_l).any()==False
-            assert np.isnan(A).any()==False
-            assert np.isnan(B_discrete).any()==False
-            assert np.isnan(control_force)==False
+        
+            # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
-            assert np.isnan(states).any()==False
             
             # Collect variables to plot
             states_coll = np.append(states_coll, states_l,axis=1)
@@ -150,7 +168,7 @@ class EvaluationEnvironment:
         axs[0].legend(loc='best', shadow=True, framealpha=1)
 
         axs[1].plot(t_control, control_force_coll, label = 'Control Force')
-        axs[1].plot(t_plant,  -states_coll[:][2],  label = 'Error')
+        # axs[1].plot(t_plant,  -states_coll[:][2],  label = 'Error')
 
         axs[1].legend(loc='best', shadow=True, framealpha=1)
 
