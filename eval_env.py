@@ -38,6 +38,7 @@ class EvaluationEnvironment:
         return sum(episode_rewards)/len(episode_rewards)
 
     def eval_ss(self):
+        self.hidden = None
         t_final      = 100
 
         dt_plant     = 0.1
@@ -112,14 +113,15 @@ class EvaluationEnvironment:
                 assert np.isnan(z).any() == False
                 assert np.isinf(z).any() == False
                 
-                input = torch.cuda.FloatTensor(z).squeeze(1)
+                input = torch.cuda.FloatTensor(z).squeeze()
+                input = input.unsqueeze(0)
                 assert torch.isnan(input).any()==False 
-                if torch.isinf(input).any():
-                    print(input)
-                    print(z)
+                # if torch.isinf(input).any():
+                #     print(input)
+                #     print(z)
                 assert torch.isinf(input).any()==False
                 
-                tensor_action = self.agent(input)
+                tensor_action, self.hidden = self.agent(input, self.hidden)
                 assert torch.isnan(tensor_action).any()==False and torch.isinf(tensor_action).any()==False
                 control_force = tensor_action.detach().cpu().numpy()[0]
                 print(control_force)
@@ -134,12 +136,10 @@ class EvaluationEnvironment:
             assert np.isnan(control_force)==False
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             assert np.isnan(states).any()==False
-            assert np.max(states) < 10
             if np.min(states) < -10:
                 print(i)
                 print(states)
                 print(control_force)
-            assert np.min(states) > -10
             
             
             # Collect variables to plot
