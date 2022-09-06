@@ -1,5 +1,3 @@
-from trainers.belief_module_bc import BeliefModuleBC
-from trainers.naive_model_bc import NaiveModelBC
 from trainers.behaviorcloner import BehaviorCloner
 
 import utils.helpers as h

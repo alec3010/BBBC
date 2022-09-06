@@ -36,7 +36,7 @@ class BehaviorCloner():
         self.agent.train()
         steps = 0
         for epoch in range(self.epochs):
-            print("Create new data loader")
+            
             loader = DataLoader(self.train_x, 
                                    self.train_y, 
                                    self.seq_length, 
@@ -56,7 +56,7 @@ class BehaviorCloner():
                 self.optimizer.step() # adam optim, gradient update
                 
                 train_loss+=loss.item() * x.size(0)
-                print(x.shape)
+                
                 n_iters+=1
                 steps += 1
            
@@ -74,11 +74,11 @@ class BehaviorCloner():
                 #     break
         
         #reward = self.eval_on_ss()
-        self.eval_on_env()
+        self.eval_on_ss()
         #print('Reward on Environment: %f' % reward )
 
     def eval_policy(self, epoch):
-        print("Create new data loader")
+        
         loader = DataLoader(self.val_x,
                                self.val_y,
                                self.seq_length, 
