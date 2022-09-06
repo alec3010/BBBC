@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from torch.optim.lr_scheduler import ExponentialLR
 
 from utils.pytorchtools import EarlyStopping
 from utils import helpers as h
@@ -31,7 +32,7 @@ class BehaviorCloner():
         self.reset_results()
 
     def train_policy(self):
-        # stopper = EarlyStopping(patience=100, verbose=True)
+        stopper = EarlyStopping(patience=5, verbose=True)
         print("... train model")
         self.agent.train()
         steps = 0
@@ -59,22 +60,29 @@ class BehaviorCloner():
                 
                 n_iters+=1
                 steps += 1
-           
+            if (epoch+1)%50 == 0 and epoch != 0:
+                self.scheduler.step()
+            
             self.writer.add_scalar("Loss/train", (train_loss/len(self.train_x)), epoch + 1)   
             #print("average train trajectory loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
             self.result_dict['train_loss']['epoch'].append(epoch + 1)
             self.result_dict['train_loss']['value'].append(train_loss/len(self.train_x))
             
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
+                
                 val_loss = self.eval_policy(epoch)
                 self.writer.add_scalar("Loss/val", (val_loss), epoch + 1)   
-                # stopper(val_loss, self.agent)
-                # if stopper.early_stop:
-                #     print("Early stop")
-                #     break
+                stopper(val_loss, self.agent)
+                if stopper.early_stop:
+                    print("Early stop")
+                    break
+
+            
+            
+            
         
         #reward = self.eval_on_ss()
-        self.eval_on_ss()
+        reward = self.eval_on_env()
         #print('Reward on Environment: %f' % reward )
 
     def eval_policy(self, epoch):
@@ -113,6 +121,7 @@ class BehaviorCloner():
     
     def init_optimizer(self):
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
+        self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=True)
         self.criterion = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
@@ -120,6 +129,7 @@ class BehaviorCloner():
 
     def get_params(self):
         self.lr = self.config['learning_rate']
+        self.gamma = self.config['gamma']
         self.process_model = self.config['process_model']
         self.network_arch = self.config['network_arch']
         self.epochs = self.config['epochs']
