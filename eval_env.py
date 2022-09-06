@@ -98,7 +98,7 @@ class EvaluationEnvironment:
         states_coll   = [[],[],[],[]]  # real states
         states_coll_n = [[],[],[],[]]  # states w/ noise 
         control_force_coll = []
-        self.agent.eval_mode()    
+        self.agent.eval()    
 
         print('starting eval loop')   
 
@@ -108,23 +108,17 @@ class EvaluationEnvironment:
             
             z = np.array([ [states_l[0,0]], [states_l[1,0]] ])
 
-            # here agent:
-            with torch.no_grad():
-                assert np.isnan(z).any() == False
-                assert np.isinf(z).any() == False
-                
-                input = torch.cuda.FloatTensor(z).squeeze()
-                input = input.unsqueeze(0)
-                assert torch.isnan(input).any()==False 
-                # if torch.isinf(input).any():
-                #     print(input)
-                #     print(z)
-                assert torch.isinf(input).any()==False
-                
-                tensor_action, self.hidden = self.agent(input, self.hidden)
-                assert torch.isnan(tensor_action).any()==False and torch.isinf(tensor_action).any()==False
-                control_force = tensor_action.detach().cpu().numpy()[0]
-                print(control_force)
+            assert np.isnan(z).any() == False
+            assert np.isinf(z).any() == False
+            
+            input = torch.cuda.FloatTensor(z).squeeze()
+            input = input.unsqueeze(0)
+            assert torch.isnan(input).any()==False 
+            assert torch.isinf(input).any()==False
+            
+            tensor_action, self.hidden = self.agent(input, self.hidden)
+            assert torch.isnan(tensor_action).any()==False and torch.isinf(tensor_action).any()==False
+            control_force = tensor_action.detach().cpu().numpy()[0]
 
             control_force_coll = np.append(control_force_coll, control_force)
             
@@ -136,11 +130,6 @@ class EvaluationEnvironment:
             assert np.isnan(control_force)==False
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             assert np.isnan(states).any()==False
-            if np.min(states) < -10:
-                print(i)
-                print(states)
-                print(control_force)
-            
             
             # Collect variables to plot
             states_coll = np.append(states_coll, states_l,axis=1)
