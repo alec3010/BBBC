@@ -32,7 +32,7 @@ class BehaviorCloner():
         self.reset_results()
 
     def train_policy(self):
-        stopper = EarlyStopping(patience=5, verbose=True)
+        stopper = EarlyStopping(patience=100, verbose=True)
         print("... train model")
         self.agent.train()
         steps = 0
@@ -81,8 +81,8 @@ class BehaviorCloner():
             
             
         
-        #reward = self.eval_on_ss()
-        reward = self.eval_on_env()
+        reward = self.eval_on_ss()
+        # reward = self.eval_on_env()
         #print('Reward on Environment: %f' % reward )
 
     def eval_policy(self, epoch):
@@ -98,7 +98,7 @@ class BehaviorCloner():
         for (x, y) in loader:
             
             if self.network_arch == "RNNFF":
-                outputs, hidden = self.agent(x) # agent, pytorch
+                outputs, hidden, _ = self.agent(x) # agent, pytorch
             elif self.network_arch == "FF":
                 outputs = self.agent(x) # agent, pytorch
             loss = self.criterion(outputs, y) # mse loss
