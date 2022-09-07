@@ -2,8 +2,9 @@ learning_params:
   prev_acs: True
   learning_rate: 0.0001
   gamma: 1.0
-  belief_dim: 8 #16
-  actor_hidden_dim: 16 #16
+  hidden_dim: 128 #16
+  belief_dim: 4
+  actor_hidden_dim: 128 #16
   decoder_hidden : [64, 64]
   batch_size: 32
   epochs: 500
@@ -12,7 +13,7 @@ learning_params:
   eval_interval: 10 
   shuffle: True
   seq_length: 2000
-  split: 0.5
+  split: 0.9
 experiment:
   envs: ['InvertedDoublePendulum-v2'] 
   traj_lengths: [10]
