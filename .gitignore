@@ -4,3 +4,5 @@ models/
 data/
 results/
 *.pickle
+*.jpg
+*.jpeg
