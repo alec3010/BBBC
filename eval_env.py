@@ -1,12 +1,13 @@
 from sre_parse import State
 import gym
-import mujoco_py
 import torch
 import numpy as np
 from scipy import signal
 import math
 import matplotlib.pyplot as plt
 import control
+
+from sklearn.metrics import mean_squared_error as mse
 
 from utils import helpers as h
 from utils.LQR import LQR
@@ -119,7 +120,8 @@ class EvaluationEnvironment:
         steps = math.ceil(t_final/dt_control)
 
         states_coll   = [[],[],[],[]]  # real states
-        states_coll_n = [[],[],[],[]]  # states w/ noise 
+        states_coll_n = [[],[],[],[]]  # states w/ noise
+        pred_err_coll = []
         control_force_coll = []
         self.agent.eval()    
 
@@ -136,7 +138,9 @@ class EvaluationEnvironment:
             
 
             if self.network_arch == "RNNFF":
-                tensor_action, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+                tensor_action, self.hidden, pred = self.agent(input_, self.hidden) # agent, pytorch
+                pred_err = math.sqrt(mse(pred[0].cpu().numpy(), states_l))
+                pred_err_coll.append(pred_err)
             elif self.network_arch == "FF":
                 tensor_action = self.agent(input_) # agent, pytorch
             
@@ -158,13 +162,12 @@ class EvaluationEnvironment:
 
                
 
-        fig, axs = plt.subplots(2)
+        fig, axs = plt.subplots(3)
 
         axs[0].plot(t_plant, states_coll[:][0], label='x')
         axs[0].plot(t_plant, states_coll[:][1], label='theta')
         axs[0].plot(t_plant, states_coll[:][2], label='x_dot')
         axs[0].plot(t_plant, states_coll[:][3], label='theta_dot')
-
         axs[0].legend(loc='best', shadow=True, framealpha=1)
 
         axs[1].plot(t_control, control_force_coll, label = 'Control Force')
@@ -172,7 +175,12 @@ class EvaluationEnvironment:
 
         axs[1].legend(loc='best', shadow=True, framealpha=1)
 
-        plt.show()
+        axs[2].plot(t_plant, pred_err_coll, label = 'Prediction Error Noise <0.002')
+        axs[2].legend(loc='best', shadow=True, framealpha=1)
+
+
+        # plt.show()
+        plt.savefig("resultplot.jpg")
 
 
 
