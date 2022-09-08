@@ -5,18 +5,14 @@ learning_params:
   hidden_dim: 128 #16
   belief_dim: 4
   actor_hidden_dim: 128 #16
-  decoder_hidden : [64, 64]
+  decoder_hidden : 64
   batch_size: 32
-  epochs: 500
+  epochs: 1000
   process_model: "pomdp"
   network_arch: "RNNFF"
+  task_agnostic: False
+  belief_reg: True
   eval_interval: 10 
   shuffle: True
-  seq_length: 2000
+  seq_length: 500
   split: 0.9
-experiment:
-  envs: ['InvertedDoublePendulum-v2'] 
-  traj_lengths: [10]
-  belief_dims: [16]
-  prev_acs: [True]
-  archs: ["naive", "belief"]
