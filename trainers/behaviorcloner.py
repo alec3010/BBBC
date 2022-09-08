@@ -48,11 +48,18 @@ class BehaviorCloner():
             
             for (x, y) in loader:
                 if self.network_arch == "RNNFF":
-                    outputs, hidden = self.agent(x) # agent, pytorch
+                    outputs, hidden, obs_pred = self.agent(x) # agent, pytorch
                 elif self.network_arch == "FF":
                     outputs = self.agent(x) # agent, pytorch
-                loss = self.criterion(outputs.float(), y.float()) # mse loss
+                assert not torch.isnan(outputs).any()
+                assert not torch.isnan(obs_pred).any()
+                reg_loss = h.loss_gaussian_nll(obs_pred, x, self.obs_dim)
+                action_loss = h.loss_gaussian_nll(outputs, y, self.acs_dim) # mse loss
+            
+                
+                loss = action_loss + reg_loss 
                 self.optimizer.zero_grad() # reset weights
+                
                 loss.backward() # backprop
                 self.optimizer.step() # adam optim, gradient update
                 
@@ -98,10 +105,14 @@ class BehaviorCloner():
         for (x, y) in loader:
             
             if self.network_arch == "RNNFF":
-                outputs, hidden, _ = self.agent(x) # agent, pytorch
+                outputs, hidden, _, obs_pred = self.agent(x) # agent, pytorch
             elif self.network_arch == "FF":
                 outputs = self.agent(x) # agent, pytorch
-            loss = self.criterion(outputs, y) # mse loss
+
+            reg_loss = h.loss_gaussian_nll(obs_pred, x, self.obs_dim)
+            action_loss = h.loss_gaussian_nll(outputs, y, self.acs_dim) # mse loss
+            loss = action_loss + reg_loss 
+            
             valid_loss += loss.item() * x.size(0)
             
 

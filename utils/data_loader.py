@@ -16,7 +16,6 @@ class DataLoader():
         
         self.x = x
         self.y = y
-        
         self.seq_length = seq_length
         self.idx_list = idx_list
         self.arch = arch
@@ -88,7 +87,7 @@ class DataLoader():
             for j in self.idx_list:
                 tmp.append(self.x[idx+i][j].item())
             tmp_x = torch.cuda.FloatTensor(tmp)
-            tmp_y = torch.from_numpy(self.y[idx+i].astype(float))
+            tmp_y = torch.cuda.FloatTensor(self.y[idx+i])
             s_x_.append(tmp_x)
             s_y_.append(tmp_y.cuda())
             

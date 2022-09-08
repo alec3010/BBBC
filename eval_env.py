@@ -138,18 +138,22 @@ class EvaluationEnvironment:
             
 
             if self.network_arch == "RNNFF":
-                tensor_action, self.hidden, pred = self.agent(input_, self.hidden) # agent, pytorch
+                tensor_action, self.hidden, pred, _= self.agent(input_, self.hidden) # agent, pytorch
+                
                 pred_err = math.sqrt(mse(pred[0].cpu().numpy(), states_l))
                 pred_err_coll.append(pred_err)
             elif self.network_arch == "FF":
                 tensor_action = self.agent(input_) # agent, pytorch
             
-            control_force = tensor_action.detach().cpu().numpy()[0]
+            cf_mean = h.get_means(tensor_action[0], 1)
+            
+            control_force = cf_mean.detach().cpu().numpy()[0]
+            
 
             # control_force = controller.calc_force(measurement)
             control_force_coll = np.append(control_force_coll, control_force)    
             states_coll_n = np.append(states_coll_n, measurement,axis=1)
-        
+            
             # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             
