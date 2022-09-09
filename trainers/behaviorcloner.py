@@ -36,6 +36,7 @@ class BehaviorCloner():
         print("... train model")
         self.agent.train()
         steps = 0
+        k = self.k
         for epoch in range(self.epochs):
             
             loader = DataLoader(self.train_x, 
@@ -45,19 +46,27 @@ class BehaviorCloner():
                                    self.network_arch)
             n_iters = 0
             train_loss = 0.0
+
+            
             
             for (x, y) in loader:
-                if self.network_arch == "RNNFF":
-                    outputs, hidden, obs_pred = self.agent(x) # agent, pytorch
+                
+                if self.network_arch == "RNNVAE":
+                    acs, obs_pred, mu_s, sigma_s = self.agent(x[k:-k]) # agent, pytorch
                 elif self.network_arch == "FF":
-                    outputs = self.agent(x) # agent, pytorch
-                assert not torch.isnan(outputs).any()
-                assert not torch.isnan(obs_pred).any()
-                reg_loss = h.loss_gaussian_nll(obs_pred, x, self.obs_dim)
-                action_loss = h.loss_gaussian_nll(outputs, y, self.acs_dim) # mse loss
+                    acs = self.agent(x) # agent, pytorch
+                # labels:
+                pred_labels = h.get_pred_labels(x, k)
+
+                rec_loss = self.rec_loss(obs_pred, pred_labels)
+                action_loss = self.mse(acs, y[k:-k]) # mse loss
+                assert not torch.isnan(acs).any()
+                
+
+                
             
                 
-                loss = action_loss + reg_loss 
+                loss = action_loss + rec_loss 
                 self.optimizer.zero_grad() # reset weights
                 
                 loss.backward() # backprop
@@ -102,16 +111,19 @@ class BehaviorCloner():
         
         valid_loss= 0.0
         self.agent.eval()
+        k = self.k
         for (x, y) in loader:
             
-            if self.network_arch == "RNNFF":
-                outputs, hidden, _, obs_pred = self.agent(x) # agent, pytorch
+            if self.network_arch == "RNNVAE":
+                 acs, obs_pred, mu_s, sigma_s, _ = self.agent(x[k:-k]) # agent, pytorch
             elif self.network_arch == "FF":
-                outputs = self.agent(x) # agent, pytorch
+                acs = self.agent(x) # agent, pytorch
 
-            reg_loss = h.loss_gaussian_nll(obs_pred, x, self.obs_dim)
-            action_loss = h.loss_gaussian_nll(outputs, y, self.acs_dim) # mse loss
-            loss = action_loss + reg_loss 
+            pred_labels = h.get_pred_labels(x, k)
+            rec_loss = self.rec_loss(obs_pred, pred_labels)
+            action_loss = self.mse(acs, y[k:-k]) # mse loss
+            assert not torch.isnan(acs).any()
+            loss = action_loss + rec_loss 
             
             valid_loss += loss.item() * x.size(0)
             
@@ -124,6 +136,17 @@ class BehaviorCloner():
 
         self.agent.train()
         return avg_loss
+
+    def rec_loss(self, pred, labels):
+        loss = 0
+        for key in pred:
+            
+            assert not torch.isnan(pred[key]).any()
+            assert not torch.isnan(labels[key]).any()
+            assert pred[key].size() == labels[key].size(), "Sizes did not Match at key '{}'".format(key)
+            l = self.mse(pred[key], labels[key])
+            loss += l
+        return loss
         
    
 
@@ -133,7 +156,7 @@ class BehaviorCloner():
     def init_optimizer(self):
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
         self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=True)
-        self.criterion = torch.nn.MSELoss()# MSE loss
+        self.mse = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
         torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
@@ -149,6 +172,7 @@ class BehaviorCloner():
         self.batch_size = self.config['batch_size']
         self.seq_length = self.config['seq_length']
         self.split = self.config['split']
+        self.k = self.config['k']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")

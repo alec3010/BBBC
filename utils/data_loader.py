@@ -12,7 +12,7 @@ class DataLoader():
 
         assert len(x)==len(y), "Val and Train must have the same lengths!"
         assert len(x)>seq_length, "Sequence length must be shorter than length of dataset!"
-        assert arch in {"FF", "RNNFF"}, "Invalid Architecture!"
+        assert arch in {"FF", "RNNVAE"}, "Invalid Architecture!"
         
         self.x = x
         self.y = y
@@ -102,7 +102,7 @@ class DataLoader():
         # if self.arch == "FF":
             # 
             # 
-        # elif self.arch =="RNNFF":
+        # elif self.arch =="RNNVAE":
             # point_y = y_[-1]
 
 

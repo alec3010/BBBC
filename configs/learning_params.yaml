@@ -9,10 +9,12 @@ learning_params:
   batch_size: 32
   epochs: 1000
   process_model: "pomdp"
-  network_arch: "RNNFF"
+  network_arch: "RNNVAE"
   task_agnostic: False
   belief_reg: True
   eval_interval: 10 
   shuffle: True
   seq_length: 500
+  k: 10
   split: 0.9
+

@@ -137,7 +137,7 @@ class EvaluationEnvironment:
             input_ = torch.cuda.FloatTensor(z)
             
 
-            if self.network_arch == "RNNFF":
+            if self.network_arch == "RNNVAE":
                 tensor_action, self.hidden, pred, _= self.agent(input_, self.hidden) # agent, pytorch
                 
                 pred_err = math.sqrt(mse(pred[0].cpu().numpy(), states_l))
@@ -206,7 +206,7 @@ class EvaluationEnvironment:
                 obs.append(state[idx])
             input_ = torch.cuda.FloatTensor(obs).unsqueeze(0)   
 
-            if self.network_arch == "RNNFF":
+            if self.network_arch == "RNNVAE":
         
                 tensor_action, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
             elif self.network_arch == "FF":

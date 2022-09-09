@@ -40,26 +40,36 @@ def add_noise(states):
     
     return states
 
-def backshift(x, dim):
-    tmp = x[:-1]
-    pad = torch.zeros(1, dim).cuda()
-    res = torch.cat((pad, tmp), dim=0)
-    return res
+def bwd_shift(x,k):
+    x = x[:-2*k,:]
+    return x
 
-def loss_gaussian_nll(pred, label, size):
-        mean = pred[:,:size]
-        beta = pred[:,size:]
-        # print("beta", beta)
-        # print("mean", mean)
-        assert not torch.isnan(pred).any()
-        assert not torch.isnan(label).any()
-        print(beta)
-        tmp_1 = (-1 / 2) * torch.log(beta) 
-        tmp_2 = (1 / 2) * beta * torch.square(mean - label)
-        assert not torch.isnan(tmp_1).any()
-        assert not torch.isnan(tmp_2).any()
-        loss = tmp_1 + tmp_2 
-        assert not torch.isnan(loss).any()
+def fwd_shift(x,k):
+    x = x[2*k:,:]
+    return x
+
+def one_bwd_shift(x,k):
+    x = x[k-1:-k-1,:]
+    return x
+
+def one_fwd_shift(x,k):
+    x = x[k+1:-k+1,:]
+    return x
+
+def get_pred_labels(x, k):
+    labels = {}
+    labels['one_fwd'] = one_fwd_shift(x,k)
+    labels['one_bwd'] = one_bwd_shift(x,k)
+    labels['k_fwd'] = fwd_shift(x,k)
+    labels['k_bwd'] = bwd_shift(x,k)
+    return labels
+
+
+def loss_gaussian_nll(mean, beta, label):
+        assert not torch.isnan(mean).any()
+        assert not torch.isnan(beta).any()
+        assert not torch.isnan(label).any()   
+        loss = (-1 / 2) * torch.log(beta) + (1 / 2) * beta * torch.square(mean - label)
         mean_loss = torch.mean(loss)
         
         # print("label: ", label.shape)
