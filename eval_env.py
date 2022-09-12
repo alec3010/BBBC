@@ -138,9 +138,9 @@ class EvaluationEnvironment:
             
 
             if self.network_arch == "RNNVAE":
-                tensor_action, self.hidden, pred, _= self.agent(input_, self.hidden) # agent, pytorch
+                tensor_action, _, mu_s, sigma_s, self.hidden= self.agent(input_, self.hidden) # agent, pytorch
                 
-                pred_err = math.sqrt(mse(pred[0].cpu().numpy(), states_l))
+                pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
                 pred_err_coll.append(pred_err)
             elif self.network_arch == "FF":
                 tensor_action = self.agent(input_) # agent, pytorch
