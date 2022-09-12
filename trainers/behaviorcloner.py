@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 import torch
+import math
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -32,7 +33,7 @@ class BehaviorCloner():
         self.reset_results()
 
     def train_policy(self):
-        stopper = EarlyStopping(patience=100, verbose=True)
+        stopper = EarlyStopping(patience=100, verbose=False)
         print("... train model")
         self.agent.train()
         steps = 0
@@ -57,16 +58,12 @@ class BehaviorCloner():
                     acs = self.agent(x) # agent, pytorch
                 # labels:
                 pred_labels = h.get_pred_labels(x, k)
-
+                kld = h.kl_div(mu_s, sigma_s)
                 rec_loss = self.rec_loss(obs_pred, pred_labels)
                 action_loss = self.mse(acs, y[k:-k]) # mse loss
                 assert not torch.isnan(acs).any()
-                
-
-                
             
-                
-                loss = action_loss + rec_loss 
+                loss = rec_loss + kld + action_loss
                 self.optimizer.zero_grad() # reset weights
                 
                 loss.backward() # backprop
@@ -109,31 +106,34 @@ class BehaviorCloner():
                                self.idx_list,
                                self.network_arch)
         
-        valid_loss, valid_loss_acs, valid_loss_rec= 0.0, 0.0, 0.0
+        valid_loss, valid_loss_acs, valid_loss_rec, valid_loss_kld = 0.0, 0.0, 0.0, 0.0
         self.agent.eval()
         k = self.k
         for (x, y) in loader:
             
             if self.network_arch == "RNNVAE":
-                 acs, obs_pred, mu_s, sigma_s, _ = self.agent(x[k:-k]) # agent, pytorch
+                acs, obs_pred, mu_s, sigma_s, _ = self.agent(x[k:-k]) # agent, pytorch
             elif self.network_arch == "FF":
                 acs = self.agent(x) # agent, pytorch
 
             pred_labels = h.get_pred_labels(x, k)
             rec_loss = self.rec_loss(obs_pred, pred_labels)
             action_loss = self.mse(acs, y[k:-k]) # mse loss
+            kld = h.kl_div(mu_s, sigma_s)
             assert not torch.isnan(acs).any()
-            loss = action_loss + rec_loss 
-            valid_loss_acs += action_loss.item() * x.size(0)
-            valid_loss_rec += rec_loss.item() * x.size(0)
-            valid_loss += loss.item() * x.size(0)
+            loss = rec_loss + kld  + action_loss
+            valid_loss_acs += action_loss.item()*k
+            valid_loss_rec += rec_loss.item()*k
+            valid_loss_kld += kld.item()*k
+            valid_loss += loss.item()*k
             
 
-        avg_loss = round(valid_loss/len(loader), 4)
-        avg_acs_loss = round(valid_loss_acs/len(loader), 4)
-        avg_rec_loss = round(valid_loss_rec/len(loader), 4)
-
-        print('Losses in Epoch {}: Tot: {}, Acs: {}, Rec: {}'.format(epoch+1, avg_loss, avg_acs_loss, avg_rec_loss))
+        avg_loss = round(valid_loss/k, 4)
+        avg_acs_loss = round(valid_loss_acs/k, 4)
+        avg_rec_loss = round(valid_loss_rec/k, 4)
+        avg_kld_loss = round(valid_loss_kld/k, 4)
+        epoch_str = h.epoch_str(epoch)
+        print('{}| TOT: {} | ACS: {} | REC: {} | KLD: {}'.format(epoch_str, avg_loss, avg_acs_loss, avg_rec_loss,  avg_kld_loss))
         self.result_dict['val_loss']['epoch'].append(epoch + 1)
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
@@ -144,7 +144,6 @@ class BehaviorCloner():
     def rec_loss(self, pred, labels):
         loss = 0
         for key in pred:
-            
             assert not torch.isnan(pred[key]).any()
             assert not torch.isnan(labels[key]).any()
             assert pred[key].size() == labels[key].size(), "Sizes did not Match at key '{}'".format(key)
@@ -152,14 +151,12 @@ class BehaviorCloner():
             loss += l
         return loss
         
-   
-
     
 
     
     def init_optimizer(self):
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
-        self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=True)
+        self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=False)
         self.mse = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
