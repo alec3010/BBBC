@@ -122,13 +122,14 @@ class EvaluationEnvironment:
         states_coll   = [[],[],[],[]]  # real states
         states_coll_n = [[],[],[],[]]  # states w/ noise
         pred_err_coll = []
+        var_coll = []
         control_force_coll = []
         self.agent.eval()    
 
         print('starting eval loop')   
 
         for i in range(0, steps):
-        
+            
             measurement = h.add_noise(states_l)
             if self.process_model == "mdp":
                 z = np.array([[ measurement[0,0], measurement[1,0], measurement[2,0], measurement[3,0]]])
@@ -138,19 +139,19 @@ class EvaluationEnvironment:
             
 
             if self.network_arch == "RNNVAE":
-                tensor_action, _, mu_s, sigma_s, self.hidden= self.agent(input_, self.hidden) # agent, pytorch
-                
+                acs, obs_pred, mu_s, sigma_s, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+                assert not np.isnan(states_l).any()
                 pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
                 pred_err_coll.append(pred_err)
             elif self.network_arch == "FF":
                 tensor_action = self.agent(input_) # agent, pytorch
             
-            cf_mean = h.get_means(tensor_action[0], 1)
+            # cf_mean = h.get_means(tensor_action[0], 1)
             
-            control_force = cf_mean.detach().cpu().numpy()[0]
+            control_force = acs.detach().cpu().numpy()[0]
             
 
-            # control_force = controller.calc_force(measurement)
+            #control_force = controller.calc_force(mu_s.detach().cpu().numpy())
             control_force_coll = np.append(control_force_coll, control_force)    
             states_coll_n = np.append(states_coll_n, measurement,axis=1)
             
@@ -159,6 +160,7 @@ class EvaluationEnvironment:
             
             # Collect variables to plot
             states_coll = np.append(states_coll, states_l,axis=1)
+            var_coll = np.append(var_coll, mu_s[0].detach().cpu().numpy(),axis=1)
             
             # Store info for next iteration
             states_l = states
@@ -166,26 +168,45 @@ class EvaluationEnvironment:
 
                
 
-        fig, axs = plt.subplots(3)
+        fig, axs = plt.subplots(4)
 
         axs[0].plot(t_plant, states_coll[:][0], label='x')
-        axs[0].plot(t_plant, states_coll[:][1], label='theta')
-        axs[0].plot(t_plant, states_coll[:][2], label='x_dot')
-        axs[0].plot(t_plant, states_coll[:][3], label='theta_dot')
+        axs[0].legend(loc='best', shadow=True, framealpha=1)
+        axs[1].plot(t_plant, states_coll[:][1], label='theta')
+        axs[1].legend(loc='best', shadow=True, framealpha=1)
+        axs[2].plot(t_plant, states_coll[:][2], label='x_dot')
+        axs[2].legend(loc='best', shadow=True, framealpha=1)
+        axs[3].plot(t_plant, states_coll[:][3], label='theta_dot')
+        axs[3].legend(loc='best', shadow=True, framealpha=1)
+
+        plt.savefig("true_states.jpg")
+
+        fig, axs = plt.subplots(4)
+
+        axs[0].plot(t_plant, var_coll[:][0], label='x')
+        axs[0].legend(loc='best', shadow=True, framealpha=1)
+        axs[1].plot(t_plant, var_coll[:][1], label='theta')
+        axs[1].legend(loc='best', shadow=True, framealpha=1)
+        axs[2].plot(t_plant, var_coll[:][2], label='x_dot')
+        axs[2].legend(loc='best', shadow=True, framealpha=1)
+        axs[3].plot(t_plant, var_coll[:][3], label='theta_dot')
+        axs[3].legend(loc='best', shadow=True, framealpha=1)
+
+        plt.savefig("variances.jpg")
+        
+        fig, axs = plt.subplots(2)
+
+
+        axs[0].plot(t_control, control_force_coll, label = 'Control Force')
+        # axs[0].plot(t_plant,  -states_coll[:][2],  label = 'Error')
+
         axs[0].legend(loc='best', shadow=True, framealpha=1)
 
-        axs[1].plot(t_control, control_force_coll, label = 'Control Force')
-        # axs[1].plot(t_plant,  -states_coll[:][2],  label = 'Error')
-
+        axs[1].plot(t_plant, pred_err_coll, label = 'Noise <0.002')
         axs[1].legend(loc='best', shadow=True, framealpha=1)
-
-        axs[2].plot(t_plant, pred_err_coll, label = 'Prediction Error Noise <0.002')
-        axs[2].legend(loc='best', shadow=True, framealpha=1)
-
-
-        # plt.show()
-        plt.savefig("resultplot.jpg")
-
+        
+        plt.show()
+        
 
 
     def run_episode_mjc(self, max_timesteps=500):
