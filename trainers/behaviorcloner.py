@@ -109,7 +109,7 @@ class BehaviorCloner():
                                self.idx_list,
                                self.network_arch)
         
-        valid_loss= 0.0
+        valid_loss, valid_loss_acs, valid_loss_rec= 0.0, 0.0, 0.0
         self.agent.eval()
         k = self.k
         for (x, y) in loader:
@@ -124,12 +124,16 @@ class BehaviorCloner():
             action_loss = self.mse(acs, y[k:-k]) # mse loss
             assert not torch.isnan(acs).any()
             loss = action_loss + rec_loss 
-            
+            valid_loss_acs += action_loss.item() * x.size(0)
+            valid_loss_rec += rec_loss.item() * x.size(0)
             valid_loss += loss.item() * x.size(0)
             
 
-        avg_loss = valid_loss/len(loader)
-        print('Validation Loss in Epoch {}: {}'.format(epoch+1, avg_loss))
+        avg_loss = round(valid_loss/len(loader), 4)
+        avg_acs_loss = round(valid_loss_acs/len(loader), 4)
+        avg_rec_loss = round(valid_loss_rec/len(loader), 4)
+
+        print('Losses in Epoch {}: Tot: {}, Acs: {}, Rec: {}'.format(epoch+1, avg_loss, avg_acs_loss, avg_rec_loss))
         self.result_dict['val_loss']['epoch'].append(epoch + 1)
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
