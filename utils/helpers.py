@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import os 
 import pickle
+import math
 
 def get_params(pth):
         with open(pth) as f:
@@ -85,3 +86,35 @@ def get_means(x, size):
 def get_vars(x, size):
     sig2 = x[size:]
     return sig2 
+
+
+def kl_div(mu, sigma):
+    if not len(sigma[sigma==0])==0:
+        print(len(sigma[sigma==0]))
+    assert len(sigma[sigma==0])==0
+    dot_product = torch.sum(mu*mu, dim=-1)
+    trace = torch.sum(sigma, dim=-1)
+    k = torch.Tensor(mu.size(0)).cuda()
+    k.fill_(mu.size(1))
+    cov  = torch.diag_embed(sigma)
+    log = torch.log(torch.det(cov))
+    
+
+    assert len(dot_product[dot_product<0])==0
+    assert len(trace[trace<0])==0
+    assert len(k[k<0])==0
+
+    kl_vec = (1/2) * (dot_product + trace - k - log)
+    result = torch.sum(kl_vec)/mu.size(0)
+    
+    return result
+
+def epoch_str(epoch):
+    epoch_str = ""
+    if math.log10(epoch+1) < 2:
+        epoch_str = str(epoch+1) + "  "
+    elif math.log10(epoch+1) < 3:
+        epoch_str = str(epoch+1) + " "
+    elif math.log10(epoch+1) < 4:
+        epoch_str = str(epoch+1)
+    return epoch_str
