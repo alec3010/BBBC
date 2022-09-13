@@ -105,10 +105,6 @@ class EvaluationEnvironment:
                             max_input_on = False)
 
 
-
-
-
-
         x         = float(0.0)
         theta     = float(0.0)
         x_dot     = float(0.0)
@@ -207,8 +203,6 @@ class EvaluationEnvironment:
         
         plt.show()
         
-
-
     def run_episode_mjc(self, max_timesteps=500):
     
         episode_reward = 0
@@ -249,9 +243,6 @@ class EvaluationEnvironment:
         
 
         return episode_reward
-
-        
-
 
     def get_params(self):
         self.lr = self.config['learning_rate']

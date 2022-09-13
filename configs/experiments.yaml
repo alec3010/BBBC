@@ -1,5 +1,0 @@
-envs: ['HalfCheetah-v2', 'Swimmer-v2', 'Hopper-v2', 'InvertedPendulum-v2', 'Walker2d-v2', 'InvertedDoublePendulum-v2']
-traj_lengths: [10, 100, 1000]
-belief_dims: [4, 8, 16, 32, 64, 128, 256]
-prev_acs: [True, False]
-archs: ["naive", "belief"]
