@@ -1,3 +1,4 @@
+from this import d
 import yaml
 import random
 import numpy as np
@@ -105,3 +106,30 @@ def epoch_str(epoch):
     elif math.log10(epoch+1) < 4:
         epoch_str = str(epoch+1)
     return epoch_str
+
+def generate_sin_dataset(length, frac):
+    t = 0
+    x = []
+    z = []
+    t = np.expand_dims(np.arange(0, 4*math.pi, 4*math.pi/length, dtype=float), axis=1)
+    
+    x = np.sin(t) 
+    # add gaussian zero-mean noise
+    noise = np.expand_dims(np.random.normal(0, 0.03, size=t.shape), axis=1)
+    
+    z = x + noise 
+
+
+    idx = int((1-frac) * len(x))
+    # split data into training and validation set
+    print("... splitting into train and val set")
+    
+    train_x = z[idx:]
+    train_y = x[idx:]
+    val_x = z[:idx]
+    val_y = x[:idx]
+    return train_x, train_y, val_x, val_y
+    
+    
+
+    
