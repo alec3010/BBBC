@@ -41,28 +41,15 @@ def add_noise(states):
     
     return states
 
-def bwd_shift(x,k):
-    x = x[:-2*k,:]
-    return x
 
-def fwd_shift(x,k):
-    x = x[2*k:,:]
-    return x
-
-def one_bwd_shift(x,k):
-    x = x[k-1:-k-1,:]
-    return x
-
-def one_fwd_shift(x,k):
-    x = x[k+1:-k+1,:]
-    return x
 
 def get_pred_labels(x, k):
     labels = {}
-    labels['one_fwd'] = one_fwd_shift(x,k)
-    labels['one_bwd'] = one_bwd_shift(x,k)
-    labels['k_fwd'] = fwd_shift(x,k)
-    labels['k_bwd'] = bwd_shift(x,k)
+    labels['reconstruction'] = x[k:-k]
+    labels['one_fwd'] = x[k+1:-k+1,:]
+    labels['one_bwd'] = x[k-1:-k-1,:]
+    labels['k_fwd'] = x[2*k:,:]
+    labels['k_bwd'] = x[:-2*k,:]
     return labels
 
 
