@@ -27,6 +27,8 @@ class BehaviorCloner():
         self.init_optimizer()
         
         self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path, self.split)
+        # self.train_x, self.train_y, self.val_x, self.val_y  = h.generate_sin_dataset(50000, self.split)
+
         self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.model_dir = "./models"
         
@@ -47,39 +49,33 @@ class BehaviorCloner():
                                    self.network_arch)
             n_iters = 0
             train_loss = 0.0
-
-            
             
             for (x, y) in loader:
                 
                 if self.network_arch == "RNNVAE":
-                    acs, obs_pred, mu_s, sigma_s = self.agent(x[k:-k]) # agent, pytorch
+                    pred, mu_s, sigma_s = self.agent(x[k:-k]) # agent, pytorch
                 elif self.network_arch == "FF":
                     acs = self.agent(x) # agent, pytorch
                 # labels:
                 pred_labels = h.get_pred_labels(x, k)
-                kld = h.kl_div(mu_s, sigma_s)
-                rec_loss = self.rec_loss(obs_pred, pred_labels)
-                action_loss = self.mse(acs, y[k:-k]) # mse loss
-                assert not torch.isnan(acs).any()
             
-                loss = rec_loss + kld + action_loss
+                loss = self.loss(pred, pred_labels, mu_s,sigma_s)
                 self.optimizer.zero_grad() # reset weights
                 
                 loss.backward() # backprop
                 self.optimizer.step() # adam optim, gradient update
                 
-                train_loss+=loss.item() * x.size(0)
+                train_loss+=loss.item()
                 
                 n_iters+=1
                 steps += 1
-            if (epoch+1)%50 == 0 and epoch != 0:
+            if (epoch+1)%50 == 0 and epoch != 0: 
                 self.scheduler.step()
             
-            self.writer.add_scalar("Loss/train", (train_loss/len(self.train_x)), epoch + 1)   
-            #print("average train trajectory loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
+            self.writer.add_scalar("Loss/train", (train_loss/n_iters), epoch + 1)   
+            # print("Training loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
             self.result_dict['train_loss']['epoch'].append(epoch + 1)
-            self.result_dict['train_loss']['value'].append(train_loss/len(self.train_x))
+            self.result_dict['train_loss']['value'].append(train_loss/n_iters)
             
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 
@@ -94,7 +90,7 @@ class BehaviorCloner():
             
             
         
-        reward = self.eval_on_ss()
+        # reward = self.eval_on_ss()
         # reward = self.eval_on_env()
         #print('Reward on Environment: %f' % reward )
 
@@ -106,54 +102,62 @@ class BehaviorCloner():
                                self.idx_list,
                                self.network_arch)
         
-        valid_loss, valid_loss_acs, valid_loss_rec, valid_loss_kld = 0.0, 0.0, 0.0, 0.0
+        valid_loss, valid_loss_rec, valid_loss_kld, valid_var = 0.0, 0.0, 0.0, 0.0
         self.agent.eval()
         k = self.k
+        n_iters = 0
         for (x, y) in loader:
             
             if self.network_arch == "RNNVAE":
-                acs, obs_pred, mu_s, sigma_s, _ = self.agent(x[k:-k]) # agent, pytorch
+                pred, mu_s, sigma_s, hn = self.agent(x[k:-k]) # agent, pytorch
             elif self.network_arch == "FF":
                 acs = self.agent(x) # agent, pytorch
 
             pred_labels = h.get_pred_labels(x, k)
-            rec_loss = self.rec_loss(obs_pred, pred_labels)
-            action_loss = self.mse(acs, y[k:-k]) # mse loss
+            rec_loss = self.rec_loss(pred, pred_labels)
             kld = h.kl_div(mu_s, sigma_s)
-            assert not torch.isnan(acs).any()
-            loss = rec_loss + kld  + action_loss
-            valid_loss_acs += action_loss.item()*k
-            valid_loss_rec += rec_loss.item()*k
-            valid_loss_kld += kld.item()*k
-            valid_loss += loss.item()*k
             
+            loss = rec_loss + self.loss_weights['latent']*kld
+            valid_loss_rec += rec_loss.item()
+            valid_loss_kld += kld.item()
+            valid_loss += loss.item()
+            valid_var += torch.mean(sigma_s).item()
+            n_iters += 1
 
-        avg_loss = round(valid_loss/k, 4)
-        avg_acs_loss = round(valid_loss_acs/k, 4)
-        avg_rec_loss = round(valid_loss_rec/k, 4)
-        avg_kld_loss = round(valid_loss_kld/k, 4)
+        avg_loss = round(valid_loss/n_iters, 4)
+        avg_rec_loss = round(valid_loss_rec/n_iters, 4)
+        avg_kld_loss = round(valid_loss_kld/n_iters, 4)
+        avg_var = round(valid_var/n_iters, 4)
         epoch_str = h.epoch_str(epoch)
-        print('{}| TOT: {} | ACS: {} | REC: {} | KLD: {}'.format(epoch_str, avg_loss, avg_acs_loss, avg_rec_loss,  avg_kld_loss))
-        self.result_dict['val_loss']['epoch'].append(epoch + 1)
+        print('{}||Losses TOT: {} | REC: {} | KLD: {} || Average Predicted Variance: {}'.format(epoch_str, avg_loss, avg_rec_loss, avg_kld_loss, avg_var))
+        self.writer.add_scalar("rec_loss/val", (avg_rec_loss), epoch + 1)   
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
 
         self.agent.train()
         return avg_loss
 
+        
+
+    def loss(self, pred, rec_labels, mu, sigma):
+        loss = 0
+        loss += self.rec_loss(pred, rec_labels)
+        kld = h.kl_div(mu, sigma)
+        loss += self.loss_weights['latent'] * kld
+        return loss
+
     def rec_loss(self, pred, labels):
         loss = 0
         for key in pred:
             assert not torch.isnan(pred[key]).any()
+            assert torch.is_tensor(labels[key])
             assert not torch.isnan(labels[key]).any()
             assert pred[key].size() == labels[key].size(), "Sizes did not Match at key '{}'".format(key)
             l = self.mse(pred[key], labels[key])
-            loss += l
+            loss += self.loss_weights['decoder'][key]*l
         return loss
-        
-    
 
-    
+
     def init_optimizer(self):
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
         self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=False)
@@ -174,6 +178,7 @@ class BehaviorCloner():
         self.seq_length = self.config['seq_length']
         self.split = self.config['split']
         self.k = self.config['k']
+        self.loss_weights = self.config['loss_weights']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
