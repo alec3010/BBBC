@@ -1,29 +1,30 @@
-learning_params:  
-  prev_acs: True
-  learning_rate: 0.0001
-  gamma: 0.98
-  hidden_dim: 16 #16
-  belief_dim: 4
-  actor_hidden_dim: 128 #16
-  decoder_hidden : 16
-  batch_size: 32
-  epochs: 200
-  process_model: "pomdp"
-  network_arch: "RNNVAE"
-  task_agnostic: False
-  belief_reg: True
-  eval_interval: 10 
-  shuffle: True
-  seq_length: 64
-  k: 5
-  split: 0.9
-  loss_weights:
-    decoder:  
-      reconstruction: 0.196
-      one_fwd: 0.196
-      one_bwd: 0.196
-      k_fwd: 0.196
-      k_bwd: 0.196
-    latent: 0.02
-    
+prev_acs: True
+learning_rate: 0.00005
+gamma: 0.7
+hidden_dim: 16 #16
+belief_dim: 4
+policy_hidden: 64 #16
+decoder_hidden : 16
+batch_size: 32
+epochs: 1000
+process_model: "pomdp"
+network_arch: "RNNVAE"
+vae_state_dict: "checkpoints/vae"
+policy_state_dict: "checkpoints/policy"
+task_agnostic: False
+belief_reg: True
+eval_interval: 10 
+shuffle: True
+seq_length: 32
+k: 5
+split: 0.9
+loss_weights:
+  decoder:  
+    reconstruction: 0.196
+    one_fwd: 0.196
+    one_bwd: 0.196
+    k_fwd: 0.196
+    k_bwd: 0.196
+  latent: 0.02
+  
 

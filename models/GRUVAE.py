@@ -46,6 +46,14 @@ class GRUVAE(nn.Module):
         else:
             return pred, mu, sigma, hn
 
+    def save(self, pth):
+        torch.save(self.state_dict(), pth)
+
+
+
+
+    
+
 
 
 

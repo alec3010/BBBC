@@ -2,6 +2,7 @@ tensorboard/
 runs/
 data/
 results/
+checkpoints/
 *.pickle
 *.jpg
 *.jpeg

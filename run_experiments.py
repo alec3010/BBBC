@@ -1,4 +1,5 @@
-from trainers.behaviorcloner import BehaviorCloner
+from trainers.policy_trainer import PolicyTrainer
+from trainers.vae_trainer import VAETrainer
 
 import utils.helpers as h
 
@@ -7,10 +8,11 @@ import pickle
 
 def quick_test(env, configs):
     print(env)
-    bc = BehaviorCloner(env, configs=configs)
-    bc.train()
-    result = bc.get_results()
-    
+    # vae_t = VAETrainer(env, configs=configs)
+    # vae_t.train()
+    pol_t = PolicyTrainer(env, configs=configs)
+    pol_t.train()
+    result = vae_t.get_results()
 
     return result
     

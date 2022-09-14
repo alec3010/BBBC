@@ -6,7 +6,7 @@ class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
 
     def __init__(
-        self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print
+        self, patience=7, verbose=False, delta=0, path="checkpoints/policy", trace_func=print
     ):
         """
         Args:
@@ -47,7 +47,7 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            # self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_loss, model)
             self.counter = 0
 
     def save_checkpoint(self, val_loss, model):
