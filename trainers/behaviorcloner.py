@@ -34,7 +34,7 @@ class BehaviorCloner():
         
         self.reset_results()
 
-    def train_policy(self):
+    def train_vae(self):
         stopper = EarlyStopping(patience=100, verbose=False)
         print("... train model")
         self.agent.train()
@@ -79,7 +79,7 @@ class BehaviorCloner():
             
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 
-                val_loss = self.eval_policy(epoch)
+                val_loss = self.eval_vae(epoch)
                 self.writer.add_scalar("Loss/val", (val_loss), epoch + 1)   
                 stopper(val_loss, self.agent)
                 if stopper.early_stop:
@@ -94,7 +94,7 @@ class BehaviorCloner():
         # reward = self.eval_on_env()
         #print('Reward on Environment: %f' % reward )
 
-    def eval_policy(self, epoch):
+    def eval_vae(self, epoch):
         
         loader = DataLoader(self.val_x,
                                self.val_y,

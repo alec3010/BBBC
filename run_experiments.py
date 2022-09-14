@@ -8,7 +8,7 @@ import pickle
 def quick_test(env, configs):
     print(env)
     bc = BehaviorCloner(env, configs=configs)
-    bc.train_policy()
+    bc.train_vae()
     result = bc.get_results()
     
 
