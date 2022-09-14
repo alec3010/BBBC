@@ -103,6 +103,7 @@ class BehaviorCloner():
                                self.network_arch)
         
         valid_loss, valid_loss_rec, valid_loss_kld, valid_var = 0.0, 0.0, 0.0, 0.0
+        valid_loss_1fwd, valid_loss_1bwd, valid_loss_kfwd, valid_loss_kbwd = 0.0, 0.0, 0.0, 0.0
         self.agent.eval()
         k = self.k
         n_iters = 0
@@ -117,8 +118,12 @@ class BehaviorCloner():
             rec_loss = self.rec_loss(pred, pred_labels)
             kld = h.kl_div(mu_s, sigma_s)
             
-            loss = rec_loss + self.loss_weights['latent']*kld
-            valid_loss_rec += rec_loss.item()
+            loss = sum(rec_loss.values()) + self.loss_weights['latent']*kld
+            valid_loss_rec += rec_loss['reconstruction'].item()
+            valid_loss_1fwd += rec_loss['one_fwd'].item()
+            valid_loss_1bwd += rec_loss['one_bwd'].item()
+            valid_loss_kfwd += rec_loss['k_fwd'].item()
+            valid_loss_kbwd += rec_loss['k_bwd'].item()
             valid_loss_kld += kld.item()
             valid_loss += loss.item()
             valid_var += torch.mean(sigma_s).item()
@@ -126,11 +131,30 @@ class BehaviorCloner():
 
         avg_loss = round(valid_loss/n_iters, 4)
         avg_rec_loss = round(valid_loss_rec/n_iters, 4)
+        avg_1fwd_loss = round(valid_loss_1fwd/n_iters, 4)
+        avg_1bwd_loss = round(valid_loss_1bwd/n_iters, 4)
+        avg_kfwd_loss = round(valid_loss_kfwd/n_iters, 4)
+        avg_kbwd_loss = round(valid_loss_kbwd/n_iters, 4)
         avg_kld_loss = round(valid_loss_kld/n_iters, 4)
         avg_var = round(valid_var/n_iters, 4)
         epoch_str = h.epoch_str(epoch)
-        print('{}||Losses TOT: {} | REC: {} | KLD: {} || Average Predicted Variance: {}'.format(epoch_str, avg_loss, avg_rec_loss, avg_kld_loss, avg_var))
-        self.writer.add_scalar("rec_loss/val", (avg_rec_loss), epoch + 1)   
+        print('{}||Losses TOT: {} | REC: {} | 1FWD: {} | 1BWD:{} | KFWD: {} | KBWD: {} | KLD: {} || Variance: {}'\
+            .format(epoch_str, 
+                    avg_loss, 
+                    avg_rec_loss, 
+                    avg_1fwd_loss, 
+                    avg_1bwd_loss, 
+                    avg_kfwd_loss, 
+                    avg_kbwd_loss, 
+                    avg_kld_loss, 
+                    avg_var))
+        self.writer.add_scalar("Loss/REC", (avg_rec_loss), epoch + 1)   
+        self.writer.add_scalar("Loss/1FWD", (avg_1fwd_loss), epoch + 1)
+        self.writer.add_scalar("Loss/1BWD", (avg_1bwd_loss), epoch + 1)
+        self.writer.add_scalar("Loss/KFWD", (avg_kfwd_loss), epoch + 1)
+        self.writer.add_scalar("Loss/KBWD", (avg_kbwd_loss), epoch + 1)
+        self.writer.add_scalar("Loss/KLD", (avg_kld_loss), epoch + 1)
+        
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
 
@@ -141,21 +165,21 @@ class BehaviorCloner():
 
     def loss(self, pred, rec_labels, mu, sigma):
         loss = 0
-        loss += self.rec_loss(pred, rec_labels)
+        loss += sum(self.rec_loss(pred, rec_labels).values())
         kld = h.kl_div(mu, sigma)
         loss += self.loss_weights['latent'] * kld
         return loss
 
     def rec_loss(self, pred, labels):
-        loss = 0
+        
+        losses = {}
         for key in pred:
             assert not torch.isnan(pred[key]).any()
             assert torch.is_tensor(labels[key])
             assert not torch.isnan(labels[key]).any()
             assert pred[key].size() == labels[key].size(), "Sizes did not Match at key '{}'".format(key)
-            l = self.mse(pred[key], labels[key])
-            loss += self.loss_weights['decoder'][key]*l
-        return loss
+            losses[key] = self.mse(pred[key], labels[key])*self.loss_weights['decoder'][key]
+        return losses
 
 
     def init_optimizer(self):
