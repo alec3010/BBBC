@@ -13,12 +13,12 @@ from utils import helpers as h
 from utils.LQR import LQR
 
 class EvaluationEnvironment:
-    def __init__(self, agent, env_name, obs_idx_list, config) -> None:
+    def __init__(self, vae, env_name, obs_idx_list, config) -> None:
         self.config = config
         
         self.belief_dim = config['belief_dim']
         self.env_name = env_name    
-        self.agent = agent
+        self.vae = vae
         self.get_params()
         self.rendering = False                      
         self.n_test_episodes = 10
@@ -27,7 +27,7 @@ class EvaluationEnvironment:
               
         self.reset_memory()  
 
-        # load agent
+        # load vae
         
         
         self.env = gym.make(env_name)
@@ -120,7 +120,7 @@ class EvaluationEnvironment:
         pred_err_coll = []
         var_coll = []
         control_force_coll = []
-        self.agent.eval()    
+        self.vae.eval()    
 
         print('starting eval loop')   
 
@@ -135,12 +135,12 @@ class EvaluationEnvironment:
             
 
             if self.network_arch == "RNNVAE":
-                acs, obs_pred, mu_s, sigma_s, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+                acs, obs_pred, mu_s, sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
                 assert not np.isnan(states_l).any()
                 pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
                 pred_err_coll.append(pred_err)
             elif self.network_arch == "FF":
-                tensor_action = self.agent(input_) # agent, pytorch
+                tensor_action = self.vae(input_) # vae, pytorch
             
             # cf_mean = h.get_means(tensor_action[0], 1)
             
@@ -209,8 +209,8 @@ class EvaluationEnvironment:
         step = 0
 
         state = self.env.reset()
-        #self.agent.reset_memory()
-        self.agent.eval()
+        #self.vae.reset_memory()
+        self.vae.eval()
         self.hidden = None
         while True:
         
@@ -223,9 +223,9 @@ class EvaluationEnvironment:
 
             if self.network_arch == "RNNVAE":
         
-                tensor_action, self.hidden = self.agent(input_, self.hidden) # agent, pytorch
+                tensor_action, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
             elif self.network_arch == "FF":
-                tensor_action = self.agent(input_)
+                tensor_action = self.vae(input_)
 
             
             a = tensor_action.detach().cpu().numpy()[0]
@@ -258,7 +258,7 @@ class EvaluationEnvironment:
         self.acs_dim = entry['acs_dim']
 
     def reset_memory(self):
-        self.init_state = torch.cuda.DoubleTensor(self.agent.belief_dim).fill_(0)
+        self.init_state = torch.cuda.DoubleTensor(self.vae.belief_dim).fill_(0)
         self.init_ac = torch.cuda.DoubleTensor(self.acs_dim).fill_(0) 
         self.curr_ob = torch.cuda.DoubleTensor(self.obs_dim).fill_(0)
         self.curr_memory = {

@@ -10,7 +10,8 @@ from utils.pytorchtools import EarlyStopping
 from utils import helpers as h
 from utils.data_loader import DataLoader
 from eval_env import EvaluationEnvironment
-import models.models as m
+from models.RNNVAE import RNNVAE
+from models.FF import FF
 
 class BehaviorCloner():
 
@@ -22,7 +23,8 @@ class BehaviorCloner():
         self.env_name = env_name
         self.load_dataset_idx()
         print("Configs are: ","\n" , self.config)
-        self.agent = m.model_factory(configs['network_arch'], obs_dim=self.obs_dim, acs_dim=self.acs_dim, configs=configs)
+        self.vae = RNNVAE(configs, self.acs_dim, self.obs_dim).cuda()
+        
         
         self.init_optimizer()
         
@@ -37,7 +39,7 @@ class BehaviorCloner():
     def train_vae(self):
         stopper = EarlyStopping(patience=100, verbose=False)
         print("... train model")
-        self.agent.train()
+        self.vae.train()
         steps = 0
         k = self.k
         for epoch in range(self.epochs):
@@ -53,9 +55,9 @@ class BehaviorCloner():
             for (x, y) in loader:
                 
                 if self.network_arch == "RNNVAE":
-                    pred, mu_s, sigma_s = self.agent(x[k:-k]) # agent, pytorch
+                    pred, mu_s, sigma_s = self.vae(x[k:-k]) # vae, pytorch
                 elif self.network_arch == "FF":
-                    acs = self.agent(x) # agent, pytorch
+                    acs = self.vae(x) # vae, pytorch
                 # labels:
                 pred_labels = h.get_pred_labels(x, k)
             
@@ -81,15 +83,11 @@ class BehaviorCloner():
                 
                 val_loss = self.eval_vae(epoch)
                 self.writer.add_scalar("Loss/val", (val_loss), epoch + 1)   
-                stopper(val_loss, self.agent)
+                stopper(val_loss, self.vae)
                 if stopper.early_stop:
                     print("Early stop")
                     break
 
-            
-            
-            
-        
         # reward = self.eval_on_ss()
         # reward = self.eval_on_env()
         #print('Reward on Environment: %f' % reward )
@@ -104,15 +102,15 @@ class BehaviorCloner():
         
         valid_loss, valid_loss_rec, valid_loss_kld, valid_var = 0.0, 0.0, 0.0, 0.0
         valid_loss_1fwd, valid_loss_1bwd, valid_loss_kfwd, valid_loss_kbwd = 0.0, 0.0, 0.0, 0.0
-        self.agent.eval()
+        self.vae.eval()
         k = self.k
         n_iters = 0
         for (x, y) in loader:
             
             if self.network_arch == "RNNVAE":
-                pred, mu_s, sigma_s, hn = self.agent(x[k:-k]) # agent, pytorch
+                pred, mu_s, sigma_s, hn = self.vae(x[k:-k]) # vae, pytorch
             elif self.network_arch == "FF":
-                acs = self.agent(x) # agent, pytorch
+                acs = self.vae(x) # vae, pytorch
 
             pred_labels = h.get_pred_labels(x, k)
             rec_loss = self.rec_loss(pred, pred_labels)
@@ -158,8 +156,10 @@ class BehaviorCloner():
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
 
-        self.agent.train()
+        self.vae.train()
         return avg_loss
+
+
 
         
 
@@ -183,12 +183,12 @@ class BehaviorCloner():
 
 
     def init_optimizer(self):
-        self.optimizer = torch.optim.Adam(self.agent.parameters(),lr=self.lr)# adam optimization
+        self.optimizer = torch.optim.Adam(self.vae.parameters(),lr=self.lr)# adam optimization
         self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=False)
         self.mse = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
-        torch.save(self.agent.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
+        torch.save(self.vae.state_dict(), os.path.join(model_dir,"InvertedPendulum.pkl"))
 
     def get_params(self):
         self.lr = self.config['learning_rate']
@@ -213,13 +213,13 @@ class BehaviorCloner():
         self.idx_list = entry['obs_dim'][self.process_model]
 
     def eval_on_env(self):
-        eval_env = EvaluationEnvironment(self.agent, self.env_name, self.idx_list, self.config)
+        eval_env = EvaluationEnvironment(self.vae, self.env_name, self.idx_list, self.config)
         avg_reward = eval_env.eval_mjc()
         
         return avg_reward
 
     def eval_on_ss(self):
-        eval_env = EvaluationEnvironment(self.agent, self.env_name, self.idx_list, self.config)
+        eval_env = EvaluationEnvironment(self.vae, self.env_name, self.idx_list, self.config)
         eval_env.eval_ss()
 
 
