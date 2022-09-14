@@ -14,16 +14,16 @@ learning_params:
   belief_reg: True
   eval_interval: 10 
   shuffle: True
-  seq_length: 500
+  seq_length: 64
   k: 10
   split: 0.9
   loss_weights:
     decoder:  
-      reconstruction: 0.18
-      one_fwd: 0.18
-      one_bwd: 0.18
-      k_fwd: 0.18
-      k_bwd: 0.18
-    latent: 0.1
+      reconstruction: 0.198
+      one_fwd: 0.198
+      one_bwd: 0.198
+      k_fwd: 0.198
+      k_bwd: 0.198
+    latent: 0.01
     
 
