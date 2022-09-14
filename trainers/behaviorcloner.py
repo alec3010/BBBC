@@ -10,7 +10,7 @@ from utils.pytorchtools import EarlyStopping
 from utils import helpers as h
 from utils.data_loader import DataLoader
 from eval_env import EvaluationEnvironment
-from models.RNNVAE import RNNVAE
+from models.GRUVAE import GRUVAE
 from models.FF import FF
 
 class BehaviorCloner():
@@ -23,8 +23,7 @@ class BehaviorCloner():
         self.env_name = env_name
         self.load_dataset_idx()
         print("Configs are: ","\n" , self.config)
-        self.vae = RNNVAE(configs, self.acs_dim, self.obs_dim).cuda()
-        
+        self.vae = RNNVAE(self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
         
         self.init_optimizer()
         
@@ -203,6 +202,9 @@ class BehaviorCloner():
         self.split = self.config['split']
         self.k = self.config['k']
         self.loss_weights = self.config['loss_weights']
+        self.hidden_dim = self.config['hidden_dim']
+        self.decoder_hidden = self.config['decoder_hidden']
+        self.belief_dim = self.config['belief_dim']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
