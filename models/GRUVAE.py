@@ -9,10 +9,10 @@ from utils import helpers as h
 
 
 class GRUVAE(nn.Module):
-    def __init__(self, Din, Dlatent, Drnn_hidden, Ddecoder):
+    def __init__(self, Din, Dlatent, Dgru_hidden, Ddecoder):
         super(GRUVAE,self).__init__()
-        Drnn_in = Dlatent*2
-        self.rnn = RNN(Drnn_in, Din, Drnn_hidden)
+        Dgru_in = Dlatent*2
+        self.gru = GRU(Dgru_in, Din, Dgru_hidden)
        
         self.ff_decoder_rec_0step = FF(Din, Dlatent, Ddecoder)
         self.ff_decoder_fwd_1step = FF(Din, Dlatent, Ddecoder)
@@ -23,7 +23,7 @@ class GRUVAE(nn.Module):
 
     
     def forward(self, x, hidden=None):
-        x, hn = self.rnn(x, hidden)
+        x, hn = self.gru(x, hidden)
         n = int(x.size(1)/2)
         mu = x[:,:n]
         
