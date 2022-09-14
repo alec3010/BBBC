@@ -23,9 +23,9 @@ class BehaviorCloner():
         self.env_name = env_name
         self.load_dataset_idx()
         print("Configs are: ","\n" , self.config)
-        self.vae = RNNVAE(self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
-        
-        self.init_optimizer()
+        self.vae = GRUVAE(self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        self.ff_policy = FF(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
+        self.init_optimizers()
         
         self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path, self.split)
         # self.train_x, self.train_y, self.val_x, self.val_y  = h.generate_sin_dataset(50000, self.split)
@@ -37,9 +37,8 @@ class BehaviorCloner():
 
     def train_vae(self):
         stopper = EarlyStopping(patience=100, verbose=False)
-        print("... train model")
+        print("... train vae model")
         self.vae.train()
-        steps = 0
         k = self.k
         for epoch in range(self.epochs):
             
@@ -53,35 +52,30 @@ class BehaviorCloner():
             
             for (x, y) in loader:
                 
-                if self.network_arch == "RNNVAE":
-                    pred, mu_s, sigma_s = self.vae(x[k:-k]) # vae, pytorch
-                elif self.network_arch == "FF":
-                    acs = self.vae(x) # vae, pytorch
-                # labels:
+                pred, mu_s, sigma_s = self.vae(x[k:-k]) # vae, pytorch
                 pred_labels = h.get_pred_labels(x, k)
             
                 loss = self.loss(pred, pred_labels, mu_s,sigma_s)
-                self.optimizer.zero_grad() # reset weights
+                self.vae_opt.zero_grad() # reset weights
                 
                 loss.backward() # backprop
-                self.optimizer.step() # adam optim, gradient update
+                self.vae_opt.step() # adam optim, gradient update
                 
                 train_loss+=loss.item()
                 
                 n_iters+=1
-                steps += 1
             if (epoch+1)%50 == 0 and epoch != 0: 
                 self.scheduler.step()
             
-            self.writer.add_scalar("Loss/train", (train_loss/n_iters), epoch + 1)   
+            self.writer.add_scalar("LossVAE/TRAIN", (train_loss/n_iters), epoch + 1)   
             # print("Training loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters))
-            self.result_dict['train_loss']['epoch'].append(epoch + 1)
-            self.result_dict['train_loss']['value'].append(train_loss/n_iters)
+            # self.result_dict['vae_train_loss']['epoch'].append(epoch + 1)
+            # self.result_dict['vae_train_loss']['value'].append(train_loss/n_iters)
             
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 
                 val_loss = self.eval_vae(epoch)
-                self.writer.add_scalar("Loss/val", (val_loss), epoch + 1)   
+                self.writer.add_scalar("LossVAE/VAL", (val_loss), epoch + 1)   
                 stopper(val_loss, self.vae)
                 if stopper.early_stop:
                     print("Early stop")
@@ -105,11 +99,7 @@ class BehaviorCloner():
         k = self.k
         n_iters = 0
         for (x, y) in loader:
-            
-            if self.network_arch == "RNNVAE":
-                pred, mu_s, sigma_s, hn = self.vae(x[k:-k]) # vae, pytorch
-            elif self.network_arch == "FF":
-                acs = self.vae(x) # vae, pytorch
+            pred, mu_s, sigma_s, hn = self.vae(x[k:-k]) # vae, pytorch
 
             pred_labels = h.get_pred_labels(x, k)
             rec_loss = self.rec_loss(pred, pred_labels)
@@ -135,7 +125,7 @@ class BehaviorCloner():
         avg_kld_loss = round(valid_loss_kld/n_iters, 4)
         avg_var = round(valid_var/n_iters, 4)
         epoch_str = h.epoch_str(epoch)
-        print('{}||Losses TOT: {} | REC: {} | 1FWD: {} | 1BWD:{} | KFWD: {} | KBWD: {} | KLD: {} || Variance: {}'\
+        print('{}||VAE Losses TOT: {} | REC: {} | 1FWD: {} | 1BWD:{} | KFWD: {} | KBWD: {} | KLD: {} || Variance: {}'\
             .format(epoch_str, 
                     avg_loss, 
                     avg_rec_loss, 
@@ -145,12 +135,12 @@ class BehaviorCloner():
                     avg_kbwd_loss, 
                     avg_kld_loss, 
                     avg_var))
-        self.writer.add_scalar("Loss/REC", (avg_rec_loss), epoch + 1)   
-        self.writer.add_scalar("Loss/1FWD", (avg_1fwd_loss), epoch + 1)
-        self.writer.add_scalar("Loss/1BWD", (avg_1bwd_loss), epoch + 1)
-        self.writer.add_scalar("Loss/KFWD", (avg_kfwd_loss), epoch + 1)
-        self.writer.add_scalar("Loss/KBWD", (avg_kbwd_loss), epoch + 1)
-        self.writer.add_scalar("Loss/KLD", (avg_kld_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/REC", (avg_rec_loss), epoch + 1)   
+        self.writer.add_scalar("LossVAE/1FWD", (avg_1fwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/1BWD", (avg_1bwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/KFWD", (avg_kfwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/KBWD", (avg_kbwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/KLD", (avg_kld_loss), epoch + 1)
         
         self.result_dict['val_loss']['value'].append(avg_loss)
             #print(f'valid set accuracy: {valid_acc}')
@@ -158,6 +148,83 @@ class BehaviorCloner():
         self.vae.train()
         return avg_loss
 
+    def train_policy(self):
+        stopper = EarlyStopping(patience=100, verbose=False)
+        print("... train policy model")
+        self.ff_policy.train()
+        k = self.k
+        for epoch in range(self.epochs):
+            
+            loader = DataLoader(self.train_x, 
+                                   self.train_y, 
+                                   self.seq_length, 
+                                   self.idx_list,
+                                   self.network_arch)
+            n_iters = 0
+            train_loss = 0.0
+            
+            for (x, y) in loader:
+                
+                pred, mu_s, sigma_s = self.vae(x[k:-k]) # vae, pytorch
+                acs = self.ff_policy(mu_s.detach())
+                loss = self.mse(acs, y[k:-k])
+                
+                self.pol_opt.zero_grad() # reset weights
+                loss.backward() # backprop
+                self.pol_opt.step() # adam optim, gradient update
+                train_loss+=loss.item()
+                n_iters+=1
+            if (epoch+1)%50 == 0 and epoch != 0: 
+                self.scheduler.step()
+            
+            self.writer.add_scalar("LossPOL/TRAIN", (train_loss/n_iters), epoch + 1)   
+            # print("Training loss in epoch " + str(epoch + 1) + ": " + str(train_loss / n_iters)
+            # self.result_dict['train_loss']['value'].append(train_loss/n_iters)
+            
+            if (epoch+1)%self.eval_int == 0 and epoch != 0:
+                
+                val_loss = self.eval_policy(epoch)
+                self.writer.add_scalar("LossPOL/VAL", (val_loss), epoch + 1)   
+                stopper(val_loss, self.vae)
+                if stopper.early_stop:
+                    print("Early stop")
+                    break
+        pass
+
+    def eval_policy(self, epoch):
+        loader = DataLoader(self.val_x,
+                               self.val_y,
+                               self.seq_length, 
+                               self.idx_list,
+                               self.network_arch)
+        
+        valid_loss = 0.0
+        self.vae.eval()
+        self.ff_policy.eval()
+        k = self.k
+        n_iters = 0
+        for (x, y) in loader:
+            
+            pred, mu_s, sigma_s, _ = self.vae(x[k:-k]) # vae, pytorch
+            acs = self.ff_policy(mu_s.detach())
+            loss = self.mse(acs, y[k:-k])
+            valid_loss += loss.item()
+            n_iters += 1
+
+        avg_loss = round(valid_loss/n_iters, 4)
+        epoch_str = h.epoch_str(epoch)
+        print('{}||POL Loss: {}'.format(epoch_str, avg_loss))
+    
+
+        self.ff_policy.train()
+        self.vae.train()
+        return avg_loss
+
+
+
+    def train(self):
+        self.train_vae()
+        self.train_policy()
 
 
         
@@ -181,9 +248,10 @@ class BehaviorCloner():
         return losses
 
 
-    def init_optimizer(self):
-        self.optimizer = torch.optim.Adam(self.vae.parameters(),lr=self.lr)# adam optimization
-        self.scheduler = ExponentialLR(optimizer=self.optimizer, gamma=self.gamma, verbose=False)
+    def init_optimizers(self):
+        self.vae_opt = torch.optim.Adam(self.vae.parameters(),lr=self.lr)# adam optimization
+        self.pol_opt = torch.optim.Adam(self.ff_policy.parameters(), lr=self.lr)
+        self.scheduler = ExponentialLR(optimizer=self.vae_opt, gamma=self.gamma, verbose=False)
         self.mse = torch.nn.MSELoss()# MSE loss
 
     def save_model(self):
@@ -205,6 +273,7 @@ class BehaviorCloner():
         self.hidden_dim = self.config['hidden_dim']
         self.decoder_hidden = self.config['decoder_hidden']
         self.belief_dim = self.config['belief_dim']
+        self.policy_hidden = self.config['policy_hidden']
 
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
