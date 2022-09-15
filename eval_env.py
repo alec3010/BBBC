@@ -26,8 +26,7 @@ class EvaluationEnvironment:
         self.idx_list = obs_idx_list
         self.hidden = None #torch.cuda.DoubleTensor(1,self.belief_dim).fill_(0)
               
-        self.reset_memory()  
-
+        
         # load vae
         
         
@@ -119,7 +118,7 @@ class EvaluationEnvironment:
         states_coll   = [[],[],[],[]]  # real states
         states_coll_n = [[],[],[],[]]  # states w/ noise
         pred_err_coll = []
-        var_coll = []
+        var_coll = [[],[],[],[]]
         control_force_coll = []
         self.vae.eval()   
         self.policy.eval() 
@@ -153,7 +152,9 @@ class EvaluationEnvironment:
             
             # Collect variables to plot
             states_coll = np.append(states_coll, states_l,axis=1)
-            var_coll = np.append(var_coll, mu_s[0].detach().cpu().numpy(),axis=1)
+            
+            sigma_s = np.reshape(sigma_s.detach().cpu().numpy(), (4,1))
+            var_coll = np.append(var_coll, sigma_s,axis=1)
             
             # Store info for next iteration
             states_l = states

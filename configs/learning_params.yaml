@@ -1,12 +1,12 @@
 prev_acs: True
-learning_rate: 0.00001
+learning_rate: 0.001
 gamma: 1
-hidden_dim: 128 #16
+hidden_dim: 16 #16
 belief_dim: 4
 policy_hidden: 128 #16
 decoder_hidden : 16
 batch_size: 32
-epochs: 1000
+epochs: 300
 process_model: "pomdp"
 network_arch: "RNNVAE"
 vae_state_dict: "checkpoints/vae"
@@ -20,12 +20,12 @@ k: 5
 split: 0.6
 loss_weights:
   decoder:  
-    reconstruction: 0.1666633
-    one_fwd: 0.1666633
-    one_bwd: 0.1666633
-    k_fwd: 0.1666633
-    k_bwd: 0.1666633
-    acs: 1
+    reconstruction: 0
+    one_fwd: 0.25
+    one_bwd: 0.25
+    k_fwd: 0.25
+    k_bwd: 0.25
+    acs: 0
   latent: 0.00001
   
 

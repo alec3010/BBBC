@@ -108,7 +108,7 @@ class VAETrainer(Trainer):
         avg_kld_loss = round(valid_loss_kld/n_iters, 4)
         avg_var = round(valid_var/n_iters, 4)
         epoch_str = h.epoch_str(epoch)
-        print('{}||VAE Losses TOT: {} | REC: {} | 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS: {} | KLD: {}'\
+        print('VAE {}|| TOT: {} | REC: {} | 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS: {} | KLD: {}'\
             .format(epoch_str, 
                     avg_loss, 
                     avg_rec_loss, 
