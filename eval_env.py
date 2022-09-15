@@ -13,12 +13,13 @@ from utils import helpers as h
 from utils.LQR import LQR
 
 class EvaluationEnvironment:
-    def __init__(self, vae, env_name, obs_idx_list, config) -> None:
+    def __init__(self, vae, policy, env_name, obs_idx_list, config) -> None:
         self.config = config
         
         self.belief_dim = config['belief_dim']
         self.env_name = env_name    
         self.vae = vae
+        self.policy = policy
         self.get_params()
         self.rendering = False                      
         self.n_test_episodes = 10
@@ -120,27 +121,23 @@ class EvaluationEnvironment:
         pred_err_coll = []
         var_coll = []
         control_force_coll = []
-        self.vae.eval()    
+        self.vae.eval()   
+        self.policy.eval() 
 
         print('starting eval loop')   
 
         for i in range(0, steps):
             
             measurement = h.add_noise(states_l)
-            if self.process_model == "mdp":
-                z = np.array([[ measurement[0,0], measurement[1,0], measurement[2,0], measurement[3,0]]])
-            if self.process_model == "pomdp":
-                z = np.array([[ measurement[0,0], measurement[1,0]]])
+            z = np.array([[ measurement[0,0], measurement[1,0]]])
             input_ = torch.cuda.FloatTensor(z)
-            
-
-            if self.network_arch == "RNNVAE":
-                acs, obs_pred, mu_s, sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
-                assert not np.isnan(states_l).any()
-                pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
-                pred_err_coll.append(pred_err)
-            elif self.network_arch == "FF":
-                tensor_action = self.vae(input_) # vae, pytorch
+                       
+            _, mu_s, sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
+            acs = self.policy(mu_s)
+            assert not np.isnan(states_l).any()
+            pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
+            pred_err_coll.append(pred_err)
+        
             
             # cf_mean = h.get_means(tensor_action[0], 1)
             

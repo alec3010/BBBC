@@ -22,7 +22,7 @@ class PolicyTrainer(Trainer):
         super(PolicyTrainer,self).__init__(env_name=env_name, configs=configs)
         print("Creating PolicyTrainer Object")
         
-        self.vae = GRUVAE(self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        self.vae = GRUVAE(self.obs_dim,self.acs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
         self.vae.load_state_dict(torch.load(self.vae_state_dict))
         self.model = FFDO(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
         self.init_optimizer()
@@ -66,6 +66,8 @@ class PolicyTrainer(Trainer):
                 if stopper.early_stop:
                     print("Early stop")
                     break
+
+        self.eval_on_ss()
         torch.save(self.model.state_dict(), self.policy_state_dict)
 
     def eval(self, epoch):

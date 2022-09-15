@@ -8,8 +8,8 @@ import pickle
 
 def quick_test(env, configs):
     print(env)
-    # vae_t = VAETrainer(env, configs=configs)
-    # vae_t.train()
+    vae_t = VAETrainer(env, configs=configs)
+    vae_t.train()
     pol_t = PolicyTrainer(env, configs=configs)
     pol_t.train()
     result = vae_t.get_results()

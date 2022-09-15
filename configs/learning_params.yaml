@@ -1,9 +1,9 @@
 prev_acs: True
-learning_rate: 0.00005
-gamma: 0.7
-hidden_dim: 16 #16
+learning_rate: 0.00001
+gamma: 1
+hidden_dim: 128 #16
 belief_dim: 4
-policy_hidden: 64 #16
+policy_hidden: 128 #16
 decoder_hidden : 16
 batch_size: 32
 epochs: 1000
@@ -15,16 +15,17 @@ task_agnostic: False
 belief_reg: True
 eval_interval: 10 
 shuffle: True
-seq_length: 32
+seq_length: 64
 k: 5
-split: 0.9
+split: 0.6
 loss_weights:
   decoder:  
-    reconstruction: 0.196
-    one_fwd: 0.196
-    one_bwd: 0.196
-    k_fwd: 0.196
-    k_bwd: 0.196
-  latent: 0.02
+    reconstruction: 0.1666633
+    one_fwd: 0.1666633
+    one_bwd: 0.1666633
+    k_fwd: 0.1666633
+    k_bwd: 0.1666633
+    acs: 1
+  latent: 0.00001
   
 

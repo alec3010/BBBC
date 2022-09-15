@@ -44,13 +44,14 @@ def add_noise(states):
 
 
 
-def get_pred_labels(x, k):
+def get_pred_labels(x, y, k):
     labels = {}
     labels['reconstruction'] = x[k:-k]
     labels['one_fwd'] = x[k+1:-k+1,:]
     labels['one_bwd'] = x[k-1:-k-1,:]
     labels['k_fwd'] = x[2*k:,:]
     labels['k_bwd'] = x[:-2*k,:]
+    labels['acs'] = y[k:-k]
     return labels
 
 

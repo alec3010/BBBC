@@ -2,6 +2,7 @@ import os
 import torch.nn as nn
 import torch
 from models.FF import FF
+from models.FFDO import FFDO
 from models.GRU import GRU
 
 from utils import helpers as h
@@ -9,16 +10,17 @@ from utils import helpers as h
 
 
 class GRUVAE(nn.Module):
-    def __init__(self, Din, Dlatent, Dgru_hidden, Ddecoder):
+    def __init__(self, Din, Dacs, Dlatent, Dgru_hidden, Ddecoder):
         super(GRUVAE,self).__init__()
-        Dgru_in = Dlatent*2
-        self.gru = GRU(Dgru_in, Din, Dgru_hidden)
+        Dgru_out = Dlatent*2
+        self.gru = GRU(Dgru_out, Din, Dgru_hidden)
        
         self.ff_decoder_rec_0step = FF(Din, Dlatent, Ddecoder)
         self.ff_decoder_fwd_1step = FF(Din, Dlatent, Ddecoder)
         self.ff_decoder_bwd_1step = FF(Din, Dlatent, Ddecoder)
         self.ff_decoder_fwd_kstep = FF(Din, Dlatent, Ddecoder)
         self.ff_decoder_bwd_kstep = FF(Din, Dlatent, Ddecoder)
+        self.ff_decoder_acs_1step = FF(Dacs, Dlatent, Ddecoder)
         
 
     
@@ -40,6 +42,7 @@ class GRUVAE(nn.Module):
         pred['one_bwd'] = self.ff_decoder_bwd_1step(z)
         pred['k_fwd'] = self.ff_decoder_fwd_kstep(z)
         pred['k_bwd'] = self.ff_decoder_bwd_kstep(z)
+        pred['acs'] = self.ff_decoder_acs_1step(z)
 
         if self.training:
             return pred, mu, sigma
