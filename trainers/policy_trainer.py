@@ -37,8 +37,9 @@ class PolicyTrainer(Trainer):
             loader = DataLoader(self.train_x, 
                                 self.train_y, 
                                 self.seq_length, 
+                                self.batch_size,
                                 self.idx_list,
-                                self.network_arch)
+                                'FF')
             n_iters = 0
             train_loss = 0.0
             

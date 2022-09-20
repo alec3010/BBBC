@@ -33,6 +33,7 @@ class VAETrainer(Trainer):
             loader = DataLoader(self.train_x, 
                                    self.train_y, 
                                    self.seq_length, 
+                                   self.batch_size,
                                    self.idx_list,
                                    self.network_arch)
             n_iters = 0
@@ -70,6 +71,7 @@ class VAETrainer(Trainer):
         loader = DataLoader(self.val_x,
                                self.val_y,
                                self.seq_length, 
+                               self.batch_size,
                                self.idx_list,
                                self.network_arch)
         
