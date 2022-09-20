@@ -6,12 +6,11 @@ class FF(nn.Module):
 
         self.model = nn.Sequential(
             nn.Linear(Din, hidden),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(hidden, hidden),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(hidden, hidden),
-            nn.LeakyReLU(),
-            
+            nn.ReLU(),
             nn.Linear(hidden, Dout)
             
         )

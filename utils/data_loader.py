@@ -25,10 +25,8 @@ class DataLoader():
 
 
     def __iter__(self):
-        if self.arch =="GRUVAE":
-            return zip(self.batches_x, self.batches_y)
-        if self.arch =="FF":
-            return zip(self.sequences_x, self.sequences_y)
+        return zip(self.sequences_x, self.sequences_y)
+
 
 
     def __len__(self):

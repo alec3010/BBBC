@@ -219,15 +219,11 @@ class EvaluationEnvironment:
                 obs.append(state[idx])
             input_ = torch.cuda.FloatTensor(obs).unsqueeze(0)   
 
-            if self.network_arch == "RNNVAE":
         
-                tensor_action, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
-            elif self.network_arch == "FF":
-                tensor_action = self.vae(input_)
-
+            _, mu, _, self.hidden = self.vae(input_, self.hidden) # vae, pytorc
+            acs = self.policy(mu.detach())
             
-            a = tensor_action.detach().cpu().numpy()[0]
-
+            a = acs.detach().cpu().numpy()[0]
 
             next_state, r, done, info = self.env.step(a)   
             episode_reward += r       

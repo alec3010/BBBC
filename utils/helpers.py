@@ -25,9 +25,9 @@ def train_val_split(pth, frac):
     # split data into training and validation set
     print("... splitting into train and val set")
     
-    train_x = data['z'][idx:]
+    train_x = data['x'][idx:]
     train_y = data['y'][idx:]
-    val_x = data['z'][:idx]
+    val_x = data['x'][:idx]
     val_y = data['y'][:idx]
     return train_x, train_y, val_x, val_y
 

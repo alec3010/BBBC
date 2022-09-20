@@ -30,12 +30,13 @@ class GRUVAE(nn.Module):
         mu = x[:,:n]
         
         # variance cannot be negative and not zero for numerical stability
-        sigma = nn.functional.relu(x[:,n:]) + 1e-6 * torch.ones_like(mu)
+        sigma = nn.functional.relu(x[:,n:])
         
         # reparametrization trick: sample using gaussian standard distribution
         zero_mu = torch.zeros(mu.size()).cuda()
         zero_sigma = torch.ones(sigma.size()).cuda()
         z = mu + sigma * torch.normal(mean=zero_mu, std=zero_sigma )
+        
         pred = {}
         pred['reconstruction'] = self.ff_decoder_rec_0step(z)
         pred['one_fwd'] = self.ff_decoder_fwd_1step(z)
@@ -45,7 +46,7 @@ class GRUVAE(nn.Module):
         pred['acs'] = self.ff_decoder_acs_1step(z)
 
         if self.training:
-            return pred, mu, sigma
+            return pred, mu
         else:
             return pred, mu, sigma, hn
 

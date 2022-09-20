@@ -6,13 +6,13 @@ class FFDO(nn.Module):
 
         self.model = nn.Sequential(
             nn.Linear(Din, hidden),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(),
             nn.Linear(hidden, hidden),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(),
             nn.Linear(hidden, hidden),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Dropout(),
             nn.Linear(hidden, Dout)
             

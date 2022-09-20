@@ -24,11 +24,11 @@ class PolicyTrainer(Trainer):
         
         self.vae = GRUVAE(self.obs_dim,self.acs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
         self.vae.load_state_dict(torch.load(self.vae_state_dict))
-        self.model = FFDO(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
+        self.model = FF(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
         self.init_optimizer()
             
     def train(self):
-        stopper = EarlyStopping(patience=10, verbose=False)
+        stopper = EarlyStopping(patience=50, verbose=False)
         print("... train policy model")
         self.model.train()
         k = self.k
@@ -45,7 +45,7 @@ class PolicyTrainer(Trainer):
             
             for (x, y) in loader:
                 
-                _, mu_s, _ = self.vae(x[k:-k]) # vae, pytorch
+                _, mu_s = self.vae(x[k:-k]) # vae, pytorch
                 acs = self.model(mu_s.detach())
                 loss = self.mse(acs, y[k:-k])
                 
@@ -68,13 +68,14 @@ class PolicyTrainer(Trainer):
                     print("Early stop")
                     break
 
-        self.eval_on_ss()
+        self.eval_on_env()
         torch.save(self.model.state_dict(), self.policy_state_dict)
 
     def eval(self, epoch):
         loader = DataLoader(self.val_x,
                                self.val_y,
                                self.seq_length, 
+                               self.batch_size,
                                self.idx_list,
                                self.network_arch)
         

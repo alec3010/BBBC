@@ -1,31 +1,29 @@
 prev_acs: True
-learning_rate: 0.001
-gamma: 1
-hidden_dim: 16 #16
+learning_rate: 0.00001
+gamma: 0.95
+hidden_dim: 64 #16
 belief_dim: 4
-policy_hidden: 128 #16
-decoder_hidden : 16
+policy_hidden: 32 #16
+decoder_hidden : 64
 batch_size: 32
 epochs: 300
 process_model: "pomdp"
-network_arch: "RNNVAE"
+network_arch: "GRUVAE"
 vae_state_dict: "checkpoints/vae"
 policy_state_dict: "checkpoints/policy"
 task_agnostic: False
 belief_reg: True
-eval_interval: 10 
+eval_interval: 5 
 shuffle: True
-seq_length: 64
+seq_length: 100
 k: 5
-split: 0.6
+split: 0.9
 loss_weights:
-  decoder:  
-    reconstruction: 0
-    one_fwd: 0.25
-    one_bwd: 0.25
-    k_fwd: 0.25
-    k_bwd: 0.25
-    acs: 0
-  latent: 0.00001
+  reconstruction: 1
+  one_fwd: 1
+  one_bwd: 1
+  k_fwd: 1
+  k_bwd: 1
+  acs: 1
   
 
