@@ -51,7 +51,7 @@ def get_pred_labels(x, y, k):
     labels['one_bwd'] = x[k-1:-k-1,:]
     labels['k_fwd'] = x[2*k:,:]
     labels['k_bwd'] = x[:-2*k,:]
-    labels['acs'] = y[k:-k]
+    labels['acs'] = inject_gaussian_noise(y[k:-k] , 1)
     return labels
 
 
@@ -93,10 +93,17 @@ def kl_div(mu, sigma):
     assert len(trace[trace<0])==0
     assert len(k[k<0])==0
 
-    kl_vec = (1/2) * (dot_product + trace - k - log)
-    result = torch.sum(kl_vec)/mu.size(0)
+    kl_vec = (1/2) * torch.sum(dot_product + trace - k - log)
+    result = kl_vec/mu.size(0)
     
     return result
+
+def inject_gaussian_noise(tensor, sigma):
+    mean_tensor = torch.zeros_like(tensor)
+    sigma_tensor = torch.ones_like(tensor)*sigma
+    noise = torch.normal(mean_tensor, sigma_tensor) 
+    return tensor + noise
+
 
 def epoch_str(epoch):
     epoch_str = ""
