@@ -28,7 +28,7 @@ class PolicyTrainer(Trainer):
         self.init_optimizer()
             
     def train(self):
-        stopper = EarlyStopping(patience=50, verbose=False)
+        stopper = EarlyStopping(patience=5, verbose=False)
         print("... train policy model")
         self.model.train()
         k = self.k
@@ -45,7 +45,7 @@ class PolicyTrainer(Trainer):
             
             for (x, y) in loader:
                 
-                _, mu_s = self.vae(x[k:-k]) # vae, pytorch
+                _, mu_s, _ = self.vae(x[k:-k]) # vae, pytorch
                 acs = self.model(mu_s.detach())
                 loss = self.mse(acs, y[k:-k])
                 
@@ -68,7 +68,7 @@ class PolicyTrainer(Trainer):
                     print("Early stop")
                     break
 
-        self.eval_on_env()
+        self.eval_on_ss()
         torch.save(self.model.state_dict(), self.policy_state_dict)
 
     def eval(self, epoch):
@@ -92,7 +92,7 @@ class PolicyTrainer(Trainer):
             valid_loss += loss.item()
             n_iters += 1
 
-        avg_loss = round(valid_loss/n_iters, 4)
+        avg_loss = round(valid_loss/n_iters, 6)
         epoch_str = h.epoch_str(epoch)
         print('{}||POL Loss: {}'.format(epoch_str, avg_loss))
     

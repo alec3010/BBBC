@@ -24,7 +24,7 @@ class VAETrainer(Trainer):
         self.init_optimizer()
            
     def train(self):
-        stopper = EarlyStopping(patience=50, verbose=False)
+        stopper = EarlyStopping(patience=10, verbose=False)
         print("... train vae model")
         self.model.train()
         k = self.k
@@ -40,9 +40,11 @@ class VAETrainer(Trainer):
             train_loss = 0.0
             
             for (x, y) in loader:
-                pred, _ = self.model(x[k:-k]) # vae, pytorch , mu_s, sigma_s 
+                pred, mu, sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, sigma_s 
                 pred_labels = h.get_pred_labels(x, y, k)
-                _, loss = self.reg_loss(pred, pred_labels)
+                _, reg_loss = self.reg_loss(pred, pred_labels)
+                kld = h.kl_div(mu, sigma)
+                loss = reg_loss + kld
                 self.opt.zero_grad() # reset weights
                 loss.backward() # backprop
                 self.opt.step() # adam optim, gradient update
@@ -59,7 +61,7 @@ class VAETrainer(Trainer):
             if (epoch+1)%self.eval_int == 0 and epoch != 0:
                 
                 val_loss = self.eval(epoch)
-                self.writer.add_scalar("LossVAE/VAL", (val_loss), epoch + 1)   
+                   
                 stopper(val_loss, self.model)
                 if stopper.early_stop:
                     print("Early stop")
@@ -81,17 +83,19 @@ class VAETrainer(Trainer):
         k = self.k
         n_iters = 0
         for (x, y) in loader:
-            pred, _ = self.model(x[k:-k]) # vae, pytorch
-
+            pred, mu, sigma, _ = self.model(x[k:-k]) # vae, pytorch
+            
             pred_labels = h.get_pred_labels(x, y, k)
-            reg_loss, loss = self.reg_loss(pred, pred_labels)
-                   
-            valid_loss_rec += reg_loss['reconstruction'].item()
-            valid_loss_1fwd += reg_loss['one_fwd'].item()
-            valid_loss_1bwd += reg_loss['one_bwd'].item()
-            valid_loss_kfwd += reg_loss['k_fwd'].item()
-            valid_loss_kbwd += reg_loss['k_bwd'].item()
-            valid_loss_acs += reg_loss['acs'].item()
+            reg_loss_dict, reg_loss = self.reg_loss(pred, pred_labels)
+            kld = h.kl_div(mu, sigma)
+            loss = reg_loss + kld * self.loss_weights['kld']
+            valid_loss_rec += reg_loss_dict['reconstruction'].item()
+            valid_loss_1fwd += reg_loss_dict['one_fwd'].item()
+            valid_loss_1bwd += reg_loss_dict['one_bwd'].item()
+            valid_loss_kfwd += reg_loss_dict['k_fwd'].item()
+            valid_loss_kbwd += reg_loss_dict['k_bwd'].item()
+            valid_loss_acs += reg_loss_dict['acs'].item()
+            valid_loss_kld += kld.item()
             valid_loss += loss.item()
             n_iters += 1
 
@@ -102,8 +106,9 @@ class VAETrainer(Trainer):
         avg_kfwd_loss = round(valid_loss_kfwd/n_iters, 6)
         avg_kbwd_loss = round(valid_loss_kbwd/n_iters, 6)
         avg_acs_loss = round(valid_loss_acs/n_iters, 6)
+        avg_kld_loss = round(valid_loss_kld/n_iters, 6)
         epoch_str = h.epoch_str(epoch)
-        print('VAE {}|| TOT: {} | REC: {} | 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS: {} '\
+        print('VAE {}|| TOT: {} | REC: {} | 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS: {} | KLD: {} '\
             .format(epoch_str, 
                     avg_loss, 
                     avg_reg_loss, 
@@ -111,22 +116,22 @@ class VAETrainer(Trainer):
                     avg_1bwd_loss, 
                     avg_kfwd_loss, 
                     avg_kbwd_loss,
-                    avg_acs_loss))
-
+                    avg_acs_loss, 
+                    avg_kld_loss))
+        
+        self.writer.add_scalar("LossVAE/VAL", (avg_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/REC", (avg_reg_loss), epoch + 1)   
         self.writer.add_scalar("LossVAE/1FWD", (avg_1fwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/1BWD", (avg_1bwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/KFWD", (avg_kfwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/KBWD", (avg_kbwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/ACS", (avg_acs_loss), epoch + 1)
-        
-        self.result_dict['val_loss']['value'].append(avg_loss)
-            #print(f'valid set accuracy: {valid_acc}')
+        self.writer.add_scalar("LossVAE/KLD", (avg_kld_loss), epoch + 1)
+        # self.result_dict['val_loss']['value'].append(avg_loss)
 
         self.model.train()
+
         return avg_loss
-
-
 
     def reg_loss(self, pred, labels):
         losses = {}
