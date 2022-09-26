@@ -5,23 +5,13 @@ import utils.helpers as h
 
 import pickle
 
-
-def quick_test(env, configs):
-    print(env)
-    vae_t = VAETrainer(env, configs=configs)
-    vae_t.train()
-    pol_t = PolicyTrainer(env, configs=configs)
-    pol_t.train()
-    result = vae_t.get_results()
-
-    return result
-    
-
-
 if __name__ == "__main__":
     
     results = []
     configs = h.get_params("./configs/learning_params.yaml")
     env = "InvertedPendulum-v2"
-    quick_test(env, configs)
+    vae_t = VAETrainer(env, configs=configs)
+    vae_t.train()
+    pol_t = PolicyTrainer(env, configs=configs)
+    pol_t.train()
     
