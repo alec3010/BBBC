@@ -43,10 +43,10 @@ class EvaluationEnvironment:
 
     def eval_ss(self):
         self.hidden = None
-        t_final      = 1000
+        t_final      = 10
 
-        dt_plant     = 0.02
-        dt_control   = 0.02
+        dt_plant     = 0.01
+        dt_control   = 0.01
 
         t_plant   = np.arange(0, t_final, dt_plant)
         t_control = np.arange(0, t_final, dt_control)
