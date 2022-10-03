@@ -24,7 +24,7 @@ class VAETrainer(Trainer):
         self.init_optimizer()
            
     def train(self):
-        stopper = EarlyStopping(patience=10, verbose=False)
+        stopper = EarlyStopping(patience=50, verbose=False)
         print("... train vae model")
         self.model.train()
         k = self.k

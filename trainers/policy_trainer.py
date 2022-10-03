@@ -30,7 +30,7 @@ class PolicyTrainer(Trainer):
             
     def train(self):
         self.hidden = None
-        stopper = EarlyStopping(patience=5, verbose=False)
+        stopper = EarlyStopping(patience=50, verbose=False)
         print("... train policy model")
         self.model.train()
        
