@@ -25,13 +25,11 @@ class Trainer():
         self.mse = torch.nn.MSELoss()# MSE loss
 
     def get_params(self):
+        self.prev_acs = self.config['prev_acs']
         self.lr = self.config['learning_rate']
         self.gamma = self.config['gamma']
-        self.process_model = self.config['process_model']
-        self.network_arch = self.config['network_arch']
         self.epochs = self.config['epochs']
         self.eval_int = self.config['eval_interval']
-        self.shuffle = self.config['shuffle']
         self.batch_size = self.config['batch_size']
         self.seq_length = self.config['seq_length']
         self.split = self.config['split']
@@ -48,9 +46,9 @@ class Trainer():
         dataset_idx = h.get_params("configs/dataset_index.yaml")
         entry = dataset_idx[self.env_name]
         self.db_path = entry['db']
-        self.obs_dim = len(entry['obs_dim'][self.process_model])
+        self.obs_dim = len(entry['obs_dim'])
         self.acs_dim = entry['acs_dim']
-        self.idx_list = entry['obs_dim'][self.process_model]
+        self.idx_list = entry['obs_dim']
 
     def reset_results(self):
         self.result_dict = {}

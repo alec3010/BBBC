@@ -10,17 +10,17 @@ from utils import helpers as h
 
 
 class GRUVAE(nn.Module):
-    def __init__(self, Din, Dacs, Dlatent, Dgru_hidden, Ddecoder):
+    def __init__(self, Din, Dacs, Dobs, Dlatent, Dgru_hidden, Ddecoder):
         super(GRUVAE,self).__init__()
         self.gru = GRU(Dlatent, Din, Dgru_hidden)
+        
 
-
-       
-        self.ff_decoder_rec_0step = FFDO(Din, Dlatent, Ddecoder)
-        self.ff_decoder_fwd_1step = FFDO(Din, Dlatent, Ddecoder)
-        self.ff_decoder_bwd_1step = FFDO(Din, Dlatent, Ddecoder)
-        self.ff_decoder_fwd_kstep = FFDO(Din, Dlatent, Ddecoder)
-        self.ff_decoder_bwd_kstep = FFDO(Din, Dlatent, Ddecoder)
+        
+        self.ff_decoder_rec_0step = FFDO(Dobs, Dlatent, Ddecoder)
+        self.ff_decoder_fwd_1step = FFDO(Dobs, Dlatent, Ddecoder)
+        self.ff_decoder_bwd_1step = FFDO(Dobs, Dlatent, Ddecoder)
+        self.ff_decoder_fwd_kstep = FFDO(Dobs, Dlatent, Ddecoder)
+        self.ff_decoder_bwd_kstep = FFDO(Dobs, Dlatent, Ddecoder)
         self.ff_decoder_acs_1step = FFDO(Dacs, Dlatent, Ddecoder)
         
 

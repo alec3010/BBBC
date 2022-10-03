@@ -21,8 +21,10 @@ class PolicyTrainer(Trainer):
     def __init__(self, env_name, configs) -> None:
         super(PolicyTrainer,self).__init__(env_name=env_name, configs=configs)
         print("Creating PolicyTrainer Object")
-        
-        self.vae = GRUVAE(self.obs_dim,self.acs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        if self.prev_acs:
+            self.vae = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        else:
+            self.vae = GRUVAE(self.obs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
         self.vae.load_state_dict(torch.load(self.vae_state_dict))
         self.vae.eval()
         self.model = FFDO(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
@@ -33,18 +35,23 @@ class PolicyTrainer(Trainer):
         stopper = EarlyStopping(patience=50, verbose=False)
         print("... train policy model")
         self.model.train()
-       
+        
         k = self.k
         for epoch in range(self.epochs):
-
+      
             
             n_iters = 0
             train_loss = 0.0
             
             for (x, y) in zip(self.train_x, self.train_y):
                 
-                pred, mu_s, log_sigma_s, self.hidden = self.vae(x[k:-k]) # vae, pytorch
-                acs = self.model(mu_s.detach())
+                if self.prev_acs:
+                    input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
+                    pred, mu, log_sigma, _ = self.vae(input_) # vae, pytorch , mu_s, log_sigma_s 
+                else:
+                    pred, mu, log_sigma, _ = self.vae(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s
+                
+                acs = self.model(mu.detach())
                 loss = self.mse(acs, y[k:-k])
                 
                 self.opt.zero_grad() # reset weights
@@ -77,9 +84,13 @@ class PolicyTrainer(Trainer):
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
+            if self.prev_acs:
+                input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
+                pred, mu, log_sigma, _ = self.vae(input_) # vae, pytorch , mu_s, log_sigma_s 
+            else:
+                pred, mu, log_sigma, _ = self.vae(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s
             
-            pred, mu_s, log_sigma_s, self.hidden = self.vae(x[k:-k]) # vae, pytorch
-            acs = self.model(mu_s.detach())
+            acs = self.model(mu.detach())
             loss = self.mse(acs, y[k:-k])
             valid_loss += loss.item()
             n_iters += 1

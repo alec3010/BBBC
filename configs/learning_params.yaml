@@ -1,4 +1,4 @@
-prev_acs: True
+prev_acs: False
 learning_rate: 0.0001
 gamma: 1
 hidden_dim: 32 #16
@@ -6,7 +6,7 @@ belief_dim: 4
 policy_hidden: 32 #16
 decoder_hidden : 32
 batch_size: 32
-epochs: 300
+epochs: 10
 vae_state_dict: "checkpoints/vae"
 policy_state_dict: "checkpoints/policy"
 eval_interval: 5 
