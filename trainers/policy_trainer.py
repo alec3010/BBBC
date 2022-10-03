@@ -44,8 +44,6 @@ class PolicyTrainer(Trainer):
             for (x, y) in zip(self.train_x, self.train_y):
                 
                 pred, mu_s, log_sigma_s, self.hidden = self.vae(x[k:-k]) # vae, pytorch
-                epsilon = torch.randn(mu_s.shape).cuda()
-                # z = mu_s + epsilon*torch.exp(0.5 * log_sigma_s )
                 acs = self.model(mu_s.detach())
                 loss = self.mse(acs, y[k:-k])
                 
@@ -81,8 +79,6 @@ class PolicyTrainer(Trainer):
         for (x, y) in zip(self.val_x, self.val_y):
             
             pred, mu_s, log_sigma_s, self.hidden = self.vae(x[k:-k]) # vae, pytorch
-            epsilon = torch.randn(mu_s.shape).cuda()
-            # z = mu_s + epsilon*torch.exp(0.5 * log_sigma_s )
             acs = self.model(mu_s.detach())
             loss = self.mse(acs, y[k:-k])
             valid_loss += loss.item()
