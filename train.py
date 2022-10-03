@@ -9,7 +9,7 @@ if __name__ == "__main__":
     
     results = []
     configs = h.get_params("./configs/learning_params.yaml")
-    env = "InvertedPendulum-v2"
+    env = "InvertedPendulum-StateSpace"
     vae_t = VAETrainer(env, configs=configs)
     vae_t.train()
     pol_t = PolicyTrainer(env, configs=configs)

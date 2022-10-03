@@ -6,6 +6,7 @@ from scipy import signal
 import math
 import matplotlib.pyplot as plt
 import control
+from torch.utils.tensorboard import SummaryWriter
 
 from sklearn.metrics import mean_squared_error as mse
 
@@ -15,7 +16,7 @@ from utils.LQR import LQR
 class EvaluationEnvironment:
     def __init__(self, vae, policy, env_name, obs_idx_list, config) -> None:
         self.config = config
-        
+        self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.belief_dim = config['belief_dim']
         self.env_name = env_name    
         self.vae = vae
@@ -30,9 +31,10 @@ class EvaluationEnvironment:
         # load vae
         
         
-        self.env = gym.make(env_name)
+        
 
     def eval_mjc(self):
+        self.env = gym.make(self.env_name)
 
         episode_rewards = []
         for i in range(self.n_test_episodes):
@@ -45,8 +47,8 @@ class EvaluationEnvironment:
         self.hidden = None
         t_final      = 10
 
-        dt_plant     = 0.01
-        dt_control   = 0.01
+        dt_plant     = 0.1
+        dt_control   = 0.1
 
         t_plant   = np.arange(0, t_final, dt_plant)
         t_control = np.arange(0, t_final, dt_control)
@@ -108,96 +110,56 @@ class EvaluationEnvironment:
         x         = float(0.0)
         theta     = float(0.0)
         x_dot     = float(0.0)
-        theta_dot = float(0.0)
+        theta_dot = float(1.0)
         states = np.array([[x], [theta],[x_dot], [theta_dot]])
         states_l = np.copy(states)
 
         full_step = int(dt_control/dt_plant)
         steps = math.ceil(t_final/dt_control)
-
-        states_coll   = [[],[],[],[]]  # real states
-        states_coll_n = [[],[],[],[]]  # states w/ noise
-        pred_err_coll = []
-        var_coll = [[],[],[],[]]
-        control_force_coll = []
         self.vae.eval()   
         self.policy.eval() 
 
         print('starting eval loop')   
 
         for i in range(0, steps):
+            self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
+            self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
+            self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
+            self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
             
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
-            input_ = torch.cuda.FloatTensor(z)
-                       
-            _, mu_s, sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
+            input_ = torch.cuda.FloatTensor(z)   
+            _, mu_s, log_sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
             acs = self.policy(mu_s)
             assert not np.isnan(states_l).any()
             pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
-            pred_err_coll.append(pred_err)
-        
-            
-            # cf_mean = h.get_means(tensor_action[0], 1)
-            
+              
+            sigma_s = np.reshape(torch.exp(log_sigma_s).detach().cpu().numpy(), (4,1))
             control_force = acs.detach().cpu().numpy()[0]
-            
-
-            #control_force = controller.calc_force(mu_s.detach().cpu().numpy())
-            control_force_coll = np.append(control_force_coll, control_force)    
-            states_coll_n = np.append(states_coll_n, measurement,axis=1)
+            self.writer.add_scalar("Test/States/Force", control_force, i + 1)
+            self.writer.add_scalar("Test/Means/x", mu_s.squeeze()[0].item(), i + 1)
+            self.writer.add_scalar("Test/Means/theta", mu_s.squeeze()[1].item(), i + 1)
+            self.writer.add_scalar("Test/Means/x_dot", mu_s.squeeze()[2].item(), i + 1)
+            self.writer.add_scalar("Test/Means/theta_dot", mu_s.squeeze()[3].item(), i + 1)
+            self.writer.add_scalar("Test/Variances/x", sigma_s.squeeze()[0].item(), i + 1)
+            self.writer.add_scalar("Test/Variances/theta", sigma_s.squeeze()[1].item(), i + 1)
+            self.writer.add_scalar("Test/Variances/x_dot", sigma_s.squeeze()[2].item(), i + 1)
+            self.writer.add_scalar("Test/Variances/theta_dot", sigma_s.squeeze()[3].item(), i + 1)
+             
+            # for j in range(10):
             
             # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             
-            # Collect variables to plot
-            states_coll = np.append(states_coll, states_l,axis=1)
             
-            sigma_s = np.reshape(sigma_s.detach().cpu().numpy(), (4,1))
-            var_coll = np.append(var_coll, sigma_s,axis=1)
+            
             
             # Store info for next iteration
             states_l = states
+                
+
             
-
-               
-
-        fig, axs = plt.subplots(4)
-
-        axs[0].plot(t_plant, states_coll[:][0], label='x')
-        axs[0].legend(loc='best', shadow=True, framealpha=1)
-        axs[1].plot(t_plant, states_coll[:][1], label='theta')
-        axs[1].legend(loc='best', shadow=True, framealpha=1)
-        axs[2].plot(t_plant, states_coll[:][2], label='x_dot')
-        axs[2].legend(loc='best', shadow=True, framealpha=1)
-        axs[3].plot(t_plant, states_coll[:][3], label='theta_dot')
-        axs[3].legend(loc='best', shadow=True, framealpha=1)
-
-        plt.savefig("true_states.jpg")
-
-        fig, axs = plt.subplots(4)
-
-        axs[0].plot(t_plant, var_coll[:][0], label='x')
-        axs[0].legend(loc='best', shadow=True, framealpha=1)
-        axs[1].plot(t_plant, var_coll[:][1], label='theta')
-        axs[1].legend(loc='best', shadow=True, framealpha=1)
-        axs[2].plot(t_plant, var_coll[:][2], label='x_dot')
-        axs[2].legend(loc='best', shadow=True, framealpha=1)
-        axs[3].plot(t_plant, var_coll[:][3], label='theta_dot')
-        axs[3].legend(loc='best', shadow=True, framealpha=1)
-
-        plt.savefig("variances.jpg")
-        
-        fig, axs = plt.subplots(2)
-
-
-        axs[0].plot(t_control, control_force_coll, label = 'Control Force')
-        # axs[0].plot(t_plant,  -states_coll[:][2],  label = 'Error')
-
-        axs[0].legend(loc='best', shadow=True, framealpha=1)
-
-        axs[1].plot(t_plant, pred_err_coll, label = 'Noise <0.002')
-        axs[1].legend(loc='best', shadow=True, framealpha=1)
         
         plt.show()
         

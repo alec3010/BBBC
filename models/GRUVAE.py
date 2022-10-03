@@ -39,12 +39,12 @@ class GRUVAE(nn.Module):
         pred['k_fwd'] = self.ff_decoder_fwd_kstep(z)
         pred['k_bwd'] = self.ff_decoder_bwd_kstep(z)
         pred['acs'] = self.ff_decoder_acs_1step(mu)
-        sigma = torch.exp(log_sigma)
+        # sigma = torch.exp(log_sigma)
 
         if self.training:
-            return pred, mu, sigma
+            return pred, mu, log_sigma
         else:
-            return pred, mu, sigma, hn
+            return pred, mu, log_sigma, hn
 
     def save(self, pth):
         torch.save(self.state_dict(), pth)

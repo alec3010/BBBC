@@ -11,9 +11,6 @@ class FFDO(nn.Module):
             nn.Linear(hidden, hidden),
             nn.ReLU(),
             nn.Dropout(p=0.2),
-            nn.Linear(hidden, hidden),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
             nn.Linear(hidden, Dout)
             
         )

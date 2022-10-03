@@ -1,10 +1,10 @@
 prev_acs: True
 learning_rate: 0.0001
-gamma: 0.95
+gamma: 1
 hidden_dim: 32 #16
 belief_dim: 4
 policy_hidden: 32 #16
-decoder_hidden : 64
+decoder_hidden : 32
 batch_size: 32
 epochs: 300
 process_model: "pomdp"
@@ -25,6 +25,4 @@ loss_weights:
   k_fwd: 1
   k_bwd: 1
   acs: 0.2
-  kld: 0.5
-  
-
+  kld: 0.1

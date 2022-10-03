@@ -30,21 +30,15 @@ class VAETrainer(Trainer):
         k = self.k
         for epoch in range(self.epochs):
             
-            loader = DataLoader(self.train_x, 
-                                   self.train_y, 
-                                   self.seq_length, 
-                                   self.batch_size,
-                                   self.idx_list,
-                                   self.network_arch)
             n_iters = 0
             train_loss = 0.0
             
-            for (x, y) in loader:
-                pred, mu, sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, sigma_s 
+            for (x, y) in zip(self.train_x, self.train_y):
+                pred, mu, log_sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
                 pred_labels = h.get_pred_labels(x, y, k)
                 _, reg_loss = self.reg_loss(pred, pred_labels)
-                kld = h.kl_div(mu, sigma)
-                loss = reg_loss + kld
+                kld = h.kl_div(mu, log_sigma)
+                loss = reg_loss + kld * self.loss_weights['kld']
                 self.opt.zero_grad() # reset weights
                 loss.backward() # backprop
                 self.opt.step() # adam optim, gradient update
@@ -69,25 +63,17 @@ class VAETrainer(Trainer):
 
         self.model.save(self.vae_state_dict)
 
-    def eval(self, epoch):
-        loader = DataLoader(self.val_x,
-                               self.val_y,
-                               self.seq_length, 
-                               self.batch_size,
-                               self.idx_list,
-                               self.network_arch)
-        
+    def eval(self, epoch):     
         valid_loss, valid_loss_rec, valid_loss_kld = 0.0, 0.0, 0.0
         valid_loss_1fwd, valid_loss_1bwd, valid_loss_kfwd, valid_loss_kbwd, valid_loss_acs = 0.0, 0.0, 0.0, 0.0, 0.0
         self.model.eval()
         k = self.k
         n_iters = 0
-        for (x, y) in loader:
-            pred, mu, sigma, _ = self.model(x[k:-k]) # vae, pytorch
-            
+        for (x, y) in zip(self.val_x, self.val_y):
+            pred, mu, log_sigma, _ = self.model(x[k:-k]) # vae, pytorch
             pred_labels = h.get_pred_labels(x, y, k)
             reg_loss_dict, reg_loss = self.reg_loss(pred, pred_labels)
-            kld = h.kl_div(mu, sigma)
+            kld = h.kl_div(mu, log_sigma)
             loss = reg_loss + kld * self.loss_weights['kld']
             valid_loss_rec += reg_loss_dict['reconstruction'].item()
             valid_loss_1fwd += reg_loss_dict['one_fwd'].item()
@@ -138,7 +124,7 @@ class VAETrainer(Trainer):
         loss = 0
         for key in pred:
             
-            assert not torch.isnan(pred[key]).any()
+            assert not torch.isnan(pred[key]).any(), "NaN at key '{}'".format(key)
             assert torch.is_tensor(labels[key])
             assert not torch.isnan(labels[key]).any()
             if not pred[key].size() == labels[key].size():
