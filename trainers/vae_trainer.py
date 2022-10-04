@@ -20,9 +20,9 @@ class VAETrainer(Trainer):
         super(VAETrainer,self).__init__(env_name=env_name, configs=configs)
         print("Creating VAETrainer Object")
         if self.prev_acs:
-            self.model = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+            self.model = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.acs_encoding_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
         else:
-            self.model = GRUVAE(self.obs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+            self.model = GRUVAE(self.obs_dim, self.acs_dim, self.acs_encoding_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
         
         self.init_optimizer()
            
@@ -38,10 +38,10 @@ class VAETrainer(Trainer):
             
             for (x, y) in zip(self.train_x, self.train_y):
                 if self.prev_acs:
-                    input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
-                    pred, mu, log_sigma = self.model(input_) # vae, pytorch , mu_s, log_sigma_s 
+                    
+                    pred, mu, log_sigma = self.model(x, y, k) # vae, pytorch , mu_s, log_sigma_s 
                 else:
-                    pred, mu, log_sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
+                    pred, mu, log_sigma = self.model(x, y, k) # vae, pytorch , mu_s, log_sigma_s 
                 
                 pred_labels = h.get_pred_labels(x, y, k)
                 _, reg_loss = self.reg_loss(pred, pred_labels)
@@ -73,57 +73,53 @@ class VAETrainer(Trainer):
 
     def eval(self, epoch):     
         valid_loss, valid_loss_rec, valid_loss_kld = 0.0, 0.0, 0.0
-        valid_loss_1fwd, valid_loss_1bwd, valid_loss_kfwd, valid_loss_kbwd, valid_loss_acs = 0.0, 0.0, 0.0, 0.0, 0.0
+        valid_loss_obs_1fwd, valid_loss_obs_1bwd, valid_loss_obs_kfwd, valid_loss_obs_kbwd, valid_loss_acs_1fwd, valid_loss_acs_kfwd = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.model.eval()
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
-            if self.prev_acs:
-                input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
-                pred, mu, log_sigma, _ = self.model(input_) # vae, pytorch , mu_s, log_sigma_s 
-            else:
-                pred, mu, log_sigma, _ = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
+            pred, mu, log_sigma, _ = self.model(x, y, k)
             pred_labels = h.get_pred_labels(x, y, k)
             reg_loss_dict, reg_loss = self.reg_loss(pred, pred_labels)
             kld = h.kl_div(mu, log_sigma)
             loss = reg_loss + kld * self.loss_weights['kld']
-            valid_loss_rec += reg_loss_dict['reconstruction'].item()
-            valid_loss_1fwd += reg_loss_dict['one_fwd'].item()
-            valid_loss_1bwd += reg_loss_dict['one_bwd'].item()
-            valid_loss_kfwd += reg_loss_dict['k_fwd'].item()
-            valid_loss_kbwd += reg_loss_dict['k_bwd'].item()
-            valid_loss_acs += reg_loss_dict['acs'].item()
+            valid_loss_obs_1fwd += reg_loss_dict['obs_one_fwd'].item()
+            valid_loss_obs_1bwd += reg_loss_dict['obs_one_bwd'].item()
+            valid_loss_obs_kfwd += reg_loss_dict['obs_k_fwd'].item()
+            valid_loss_obs_kbwd += reg_loss_dict['obs_k_bwd'].item()
+            valid_loss_acs_1fwd += reg_loss_dict['acs_1_fwd'].item()
+            valid_loss_acs_kfwd += reg_loss_dict['acs_k_fwd'].item()
             valid_loss_kld += kld.item()
             valid_loss += loss.item()
             n_iters += 1
 
         avg_loss = round(valid_loss/n_iters, 6)
-        avg_reg_loss = round(valid_loss_rec/n_iters, 6)
-        avg_1fwd_loss = round(valid_loss_1fwd/n_iters, 6)
-        avg_1bwd_loss = round(valid_loss_1bwd/n_iters, 6)
-        avg_kfwd_loss = round(valid_loss_kfwd/n_iters, 6)
-        avg_kbwd_loss = round(valid_loss_kbwd/n_iters, 6)
-        avg_acs_loss = round(valid_loss_acs/n_iters, 6)
+        avg_obs_1fwd_loss = round(valid_loss_obs_1fwd/n_iters, 6)
+        avg_obs_1bwd_loss = round(valid_loss_obs_1bwd/n_iters, 6)
+        avg_obs_kfwd_loss = round(valid_loss_obs_kfwd/n_iters, 6)
+        avg_obs_kbwd_loss = round(valid_loss_obs_kbwd/n_iters, 6)
+        avg_acs_1fwd_loss = round(valid_loss_acs_1fwd/n_iters, 6)
+        avg_acs_kfwd_loss = round(valid_loss_acs_kfwd/n_iters, 6)
         avg_kld_loss = round(valid_loss_kld/n_iters, 6)
         epoch_str = h.epoch_str(epoch)
-        print('VAE {}|| TOT: {} | REC: {} | 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS: {} | KLD: {} '\
+        print('VAE {}|| TOT: {} || OBS || 1FWD: {} | 1BWD: {} | KFWD: {} | KBWD: {} | ACS || 1FWD: {} | KFWD: {} KLD: {} '\
             .format(epoch_str, 
                     avg_loss, 
-                    avg_reg_loss, 
-                    avg_1fwd_loss, 
-                    avg_1bwd_loss, 
-                    avg_kfwd_loss, 
-                    avg_kbwd_loss,
-                    avg_acs_loss, 
+                    avg_obs_1fwd_loss, 
+                    avg_obs_1bwd_loss, 
+                    avg_obs_kfwd_loss, 
+                    avg_obs_kbwd_loss,
+                    avg_acs_1fwd_loss,
+                    avg_acs_kfwd_loss, 
                     avg_kld_loss))
         
         self.writer.add_scalar("LossVAE/VAL", (avg_loss), epoch + 1)
-        self.writer.add_scalar("LossVAE/REC", (avg_reg_loss), epoch + 1)   
-        self.writer.add_scalar("LossVAE/1FWD", (avg_1fwd_loss), epoch + 1)
-        self.writer.add_scalar("LossVAE/1BWD", (avg_1bwd_loss), epoch + 1)
-        self.writer.add_scalar("LossVAE/KFWD", (avg_kfwd_loss), epoch + 1)
-        self.writer.add_scalar("LossVAE/KBWD", (avg_kbwd_loss), epoch + 1)
-        self.writer.add_scalar("LossVAE/ACS", (avg_acs_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/OBS/1FWD", (avg_obs_1fwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/OBS/1BWD", (avg_obs_1bwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/OBS/KFWD", (avg_obs_kfwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/OBS/KBWD", (avg_obs_kbwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/ACS/1FWD", (avg_acs_1fwd_loss), epoch + 1)
+        self.writer.add_scalar("LossVAE/ACS/KFWD", (avg_acs_kfwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/KLD", (avg_kld_loss), epoch + 1)
         # self.result_dict['val_loss']['value'].append(avg_loss)
 

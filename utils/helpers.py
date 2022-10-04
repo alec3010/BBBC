@@ -74,14 +74,29 @@ def add_noise(states):
 
 def get_pred_labels(x, y, k):
     labels = {}
-    labels['reconstruction'] = x[k:-k]
-    labels['one_fwd'] = x[k+1:-k+1,:]
-    labels['one_bwd'] = x[k-1:-k-1,:]
-    labels['k_fwd'] = x[2*k:,:]
-    labels['k_bwd'] = x[:-2*k,:]
-    labels['acs'] = y[k:-k]
+    labels['obs_one_fwd'] = x[k+1:-k,:]
+    labels['obs_one_bwd'] = x[k:-k-1,:]
+    labels['obs_k_fwd'] = x[2*k+1:,:]
+    labels['obs_k_bwd'] = x[:-2*k-1,:]
+    labels['acs_1_fwd'] = y[k:-k-1]
+    tmp = tm1_tpkm1(y, k)
+    labels['acs_k_fwd'] = tmp.squeeze(2)
     return labels
 
+def tm1_tpkm1(s, k):
+    future_k = []
+    for t in range(k+1, s.size(0)-k):
+        future_k.append(s[t-1:t+k])
+    stacked = torch.stack(future_k, dim = 0)
+    return stacked
+   
+
+def tmkm1_tm1(s, k):
+    past_k = []
+    for t in range(k+1, s.size(0)-k):
+        past_k.append(s[t-k-1:t])
+    stacked = torch.stack(past_k, dim = 0)
+    return stacked
 
 def loss_gaussian_nll(mean, beta, label):
         assert not torch.isnan(mean).any()
@@ -96,6 +111,11 @@ def loss_gaussian_nll(mean, beta, label):
         # print("loss: ", mean_loss)
         return mean_loss
 
+def zero_pad(t):
+    
+    zeros = torch.unsqueeze(torch.zeros_like(t[0]).cuda(), 0)
+    return torch.cat((zeros, t), dim=0)
+   
 def get_means(x, size):
     mu = x[:size]
     return mu

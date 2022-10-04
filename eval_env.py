@@ -116,7 +116,7 @@ class EvaluationEnvironment:
 
         full_step = int(dt_control/dt_plant)
         steps = math.ceil(t_final/dt_control)
-        self.vae.eval()   
+        self.vae.test()   
         self.policy.eval() 
         self.prev_ac = torch.cuda.FloatTensor([[0]])
 
@@ -127,9 +127,9 @@ class EvaluationEnvironment:
             
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
-            z_cuda = torch.cuda.FloatTensor(z)   
-            input_ = torch.cat((z_cuda, self.prev_ac), -1)
-            _, mu_s, log_sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
+            z_cuda = torch.cuda.FloatTensor(z)  
+            mu_s, log_sigma_s, self.hidden = self.vae(z_cuda, self.prev_ac, 5, self.hidden) # vae, pytorch
+            
             acs = self.policy(mu_s)
             self.prev_ac = acs
             assert not np.isnan(states_l).any()
@@ -146,10 +146,6 @@ class EvaluationEnvironment:
             self.writer.add_scalar("Test/Means/theta", mu_s.squeeze()[1].item(), i + 1)
             self.writer.add_scalar("Test/Means/x_dot", mu_s.squeeze()[2].item(), i + 1)
             self.writer.add_scalar("Test/Means/theta_dot", mu_s.squeeze()[3].item(), i + 1)
-            self.writer.add_scalar("Test/Variances/x", sigma_s.squeeze()[0].item(), i + 1)
-            self.writer.add_scalar("Test/Variances/theta", sigma_s.squeeze()[1].item(), i + 1)
-            self.writer.add_scalar("Test/Variances/x_dot", sigma_s.squeeze()[2].item(), i + 1)
-            self.writer.add_scalar("Test/Variances/theta_dot", sigma_s.squeeze()[3].item(), i + 1)
              
             # for j in range(10):
             
