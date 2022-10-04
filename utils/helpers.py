@@ -79,7 +79,7 @@ def get_pred_labels(x, y, k):
     labels['one_bwd'] = x[k-1:-k-1,:]
     labels['k_fwd'] = x[2*k:,:]
     labels['k_bwd'] = x[:-2*k,:]
-    labels['acs'] = inject_gaussian_noise(y[k:-k], 10)
+    labels['acs'] = y[k:-k]
     return labels
 
 
