@@ -1,15 +1,11 @@
 InvertedPendulum-StateSpace:
   db: data/LQRKalman_demo_InvertedPendulum.pickle
-  obs_dim:
-    pomdp: [0,1]
-    mdp: [0,1,2,3]
+  obs_dim: [0,1]
   acs_dim: 1
 
 InvertedPendulum-v2:
   db: data/InvertedPendulum-v2.pickle
-  obs_dim:
-    pomdp: [0,1]
-    mdp: [0,1,2,3]
+  obs_dim: [0,1]
   acs_dim: 1
 
 

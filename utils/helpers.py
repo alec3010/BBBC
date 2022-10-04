@@ -12,24 +12,6 @@ def get_params(pth):
             
             return config
 
-# def train_val_split(pth, frac):
-#     print("... read data")
-#     data_file = os.path.join(pth)
-
-#     f = open(data_file,'rb')
-#     data = pickle.load(f)
-#     n_samples = len(data['x'])
-
-#     idx = int((1-frac) * n_samples)
-#     # split data into training and validation set
-#     print("... splitting into train and val set")
-    
-#     train_x = data['z'][idx:]
-#     train_y = data['y'][idx:]
-#     val_x = data['z'][:idx]
-#     val_y = data['y'][:idx]
-#     return train_x, train_y, val_x, val_y
-
 def train_val_split(pth, frac, idx_list):
     print("... read data")
     data_file = os.path.join(pth)
@@ -97,7 +79,7 @@ def get_pred_labels(x, y, k):
     labels['one_bwd'] = x[k-1:-k-1,:]
     labels['k_fwd'] = x[2*k:,:]
     labels['k_bwd'] = x[:-2*k,:]
-    labels['acs'] = inject_gaussian_noise(y[k:-k], 10)
+    labels['acs'] = y[k:-k]
     return labels
 
 
@@ -125,27 +107,6 @@ def get_vars(x, size):
 def kl_div(mu, log_sigma):
     result = -0.5 * torch.sum(1 + log_sigma - mu**2 - torch.exp(log_sigma))
     return result
-
-# def kl_div(mu, sigma):
-    # if not len(sigma[sigma==0])==0:
-        # print(len(sigma[sigma==0]))
-    # assert len(sigma[sigma==0])==0
-    # dot_product = torch.sum(mu*mu, dim=-1)
-    # trace = torch.sum(sigma, dim=-1)
-    # k = torch.Tensor(mu.size(0)).cuda()
-    # k.fill_(mu.size(1))
-    # cov  = torch.diag_embed(sigma)
-    # log = torch.log(torch.det(cov))
-    # 
-# 
-    # assert len(dot_product[dot_product<0])==0
-    # assert len(trace[trace<0])==0
-    # assert len(k[k<0])==0
-# 
-    # kl_vec = (1/2) * torch.sum(dot_product + trace - k - log)
-    # result = kl_vec/mu.size(0)
-    # 
-    # return result
 
 def inject_gaussian_noise(tensor, sigma):
     mean_tensor = torch.zeros_like(tensor)

@@ -118,25 +118,29 @@ class EvaluationEnvironment:
         steps = math.ceil(t_final/dt_control)
         self.vae.eval()   
         self.policy.eval() 
+        self.prev_ac = torch.cuda.FloatTensor([[0]])
 
         print('starting eval loop')   
 
         for i in range(0, steps):
-            self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
-            self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
-            self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
-            self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
+            
             
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
-            input_ = torch.cuda.FloatTensor(z)   
+            z_cuda = torch.cuda.FloatTensor(z)   
+            input_ = torch.cat((z_cuda, self.prev_ac), -1)
             _, mu_s, log_sigma_s, self.hidden = self.vae(input_, self.hidden) # vae, pytorch
             acs = self.policy(mu_s)
+            self.prev_ac = acs
             assert not np.isnan(states_l).any()
             pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
               
             sigma_s = np.reshape(torch.exp(log_sigma_s).detach().cpu().numpy(), (4,1))
             control_force = acs.detach().cpu().numpy()[0]
+            self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
+            self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
+            self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
+            self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
             self.writer.add_scalar("Test/States/Force", control_force, i + 1)
             self.writer.add_scalar("Test/Means/x", mu_s.squeeze()[0].item(), i + 1)
             self.writer.add_scalar("Test/Means/theta", mu_s.squeeze()[1].item(), i + 1)
@@ -151,9 +155,6 @@ class EvaluationEnvironment:
             
             # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
-            
-            
-            
             
             # Store info for next iteration
             states_l = states
@@ -202,16 +203,14 @@ class EvaluationEnvironment:
 
     def get_params(self):
         self.lr = self.config['learning_rate']
-        self.process_model = self.config['process_model']
-        self.network_arch = self.config['network_arch']
         self.epochs = self.config['epochs']
         self.eval_int = self.config['eval_interval']
-        self.shuffle = self.config['shuffle']
         self.batch_size = self.config['batch_size']
         dataset_idx = h.get_params("configs/dataset_index.yaml")
         entry = dataset_idx[self.env_name]
-        self.obs_dim = len(entry['obs_dim'][self.process_model])
+        self.obs_dim = len(entry['obs_dim'])
         self.acs_dim = entry['acs_dim']
+        self.prev_acs = self.config['prev_acs']
 
     def reset_memory(self):
         self.init_state = torch.cuda.DoubleTensor(self.vae.belief_dim).fill_(0)

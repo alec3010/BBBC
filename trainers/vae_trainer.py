@@ -19,8 +19,11 @@ class VAETrainer(Trainer):
     def __init__(self, env_name, configs) -> None:
         super(VAETrainer,self).__init__(env_name=env_name, configs=configs)
         print("Creating VAETrainer Object")
-
-        self.model = GRUVAE(self.obs_dim, self.acs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        if self.prev_acs:
+            self.model = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        else:
+            self.model = GRUVAE(self.obs_dim, self.acs_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden).cuda()
+        
         self.init_optimizer()
            
     def train(self):
@@ -34,7 +37,12 @@ class VAETrainer(Trainer):
             train_loss = 0.0
             
             for (x, y) in zip(self.train_x, self.train_y):
-                pred, mu, log_sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
+                if self.prev_acs:
+                    input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
+                    pred, mu, log_sigma = self.model(input_) # vae, pytorch , mu_s, log_sigma_s 
+                else:
+                    pred, mu, log_sigma = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
+                
                 pred_labels = h.get_pred_labels(x, y, k)
                 _, reg_loss = self.reg_loss(pred, pred_labels)
                 kld = h.kl_div(mu, log_sigma)
@@ -70,7 +78,11 @@ class VAETrainer(Trainer):
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
-            pred, mu, log_sigma, _ = self.model(x[k:-k]) # vae, pytorch
+            if self.prev_acs:
+                input_ = torch.cat((x[k:-k], y[k-1:-k-1,:]), -1)
+                pred, mu, log_sigma, _ = self.model(input_) # vae, pytorch , mu_s, log_sigma_s 
+            else:
+                pred, mu, log_sigma, _ = self.model(x[k:-k]) # vae, pytorch , mu_s, log_sigma_s 
             pred_labels = h.get_pred_labels(x, y, k)
             reg_loss_dict, reg_loss = self.reg_loss(pred, pred_labels)
             kld = h.kl_div(mu, log_sigma)
