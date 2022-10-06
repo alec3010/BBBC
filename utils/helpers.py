@@ -74,6 +74,7 @@ def add_noise(states):
 
 def get_pred_labels(x, y, k):
     labels = {}
+    labels['reconstruction'] = x[k+1:-k, :]
     labels['obs_one_fwd'] = x[k+1:-k,:]
     labels['obs_one_bwd'] = x[k:-k-1,:]
     labels['obs_k_fwd'] = x[2*k+1:,:]
@@ -82,6 +83,18 @@ def get_pred_labels(x, y, k):
     tmp = tm1_tpkm1(y, k)
     labels['acs_k_fwd'] = tmp.squeeze(2)
     return labels
+
+# def get_pred_labels(x, y, k):
+#     labels = {}
+#     labels['reconstruction'] = x[k:-k, :]
+#     labels['obs_one_fwd'] = x[k+1:-k+1,:]
+#     labels['obs_one_bwd'] = x[k-1:-k-1,:]
+#     labels['obs_k_fwd'] = x[2*k:,:]
+#     labels['obs_k_bwd'] = x[:-2*k,:]
+#     labels['acs_1_fwd'] = y[k:-k]
+#     tmp = tm1_tpkm1(y, k)
+#     labels['acs_k_fwd'] = tmp.squeeze(2)
+#     return labels
 
 def tm1_tpkm1(s, k):
     future_k = []
