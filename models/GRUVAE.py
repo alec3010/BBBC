@@ -93,7 +93,7 @@ class GRUVAE(nn.Module):
             pred['acs_1_fwd'] = self.ff_decoder_acs_1step(torch.cat((padded_mu[:-1], obs), dim=1 )) # 
 
             # k-step action prediction 
-            pred['acs_k_fwd'] = self.ff_decoder_acs_kstep(torch.cat((padded_mu[:-1], obs[2*k+1:]), dim=1 ))
+            # pred['acs_k_fwd'] = self.ff_decoder_acs_kstep(torch.cat((padded_mu[:-1], obs[2*k+1:]), dim=1 ))
             # sigma = torch.exp(log_sigma)
 
         if self.training:
