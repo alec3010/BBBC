@@ -21,6 +21,7 @@ class PolicyTrainer(Trainer):
     def __init__(self, env_name, configs) -> None:
         super(PolicyTrainer,self).__init__(env_name=env_name, configs=configs)
         print("Creating PolicyTrainer Object")
+        self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path_policy, self.split, self.idx_list)
         if self.prev_acs:
             self.vae = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.acs_encoding_dim,self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
         else:
@@ -45,7 +46,10 @@ class PolicyTrainer(Trainer):
             
             for (x, y) in zip(self.train_x, self.train_y):
                 
-                pred, mu, log_sigma, _ = self.vae(x, y, k)
+                future_acs = h.tm1_tpkm1(y, k)
+                past_acs = h.tmkm1_tm1(y, k)
+
+                pred, mu, log_sigma, _ = self.vae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
                 acs = self.model(mu.detach())
                 loss = self.mse(acs, y[k+1:-k])
                 
@@ -79,7 +83,10 @@ class PolicyTrainer(Trainer):
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
-            pred, mu, log_sigma, _ = self.vae(x, y, k)
+            future_acs = h.tm1_tpkm1(y, k)
+            past_acs = h.tmkm1_tm1(y, k)
+
+            pred, mu, log_sigma, _ = self.vae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
             
             acs = self.model(mu.detach())
             loss = self.mse(acs, y[k+1:-k])

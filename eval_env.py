@@ -128,12 +128,11 @@ class EvaluationEnvironment:
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
             z_cuda = torch.cuda.FloatTensor(z)  
-            mu_s, log_sigma_s, self.hidden = self.vae(z_cuda, self.prev_ac, 5, self.hidden) # vae, pytorch
+            mu_s, log_sigma_s, self.hidden = self.vae(obs=z_cuda, acs=self.prev_ac, hidden=self.hidden) # vae, pytorch
             
             acs = self.policy(mu_s)
             self.prev_ac = acs
             assert not np.isnan(states_l).any()
-            pred_err = math.sqrt(mse(mu_s[0].detach().cpu().numpy(), states_l))
               
             sigma_s = np.reshape(torch.exp(log_sigma_s).detach().cpu().numpy(), (4,1))
             control_force = acs.detach().cpu().numpy()[0]
@@ -147,7 +146,7 @@ class EvaluationEnvironment:
             self.writer.add_scalar("Test/Means/x_dot", mu_s.squeeze()[2].item(), i + 1)
             self.writer.add_scalar("Test/Means/theta_dot", mu_s.squeeze()[3].item(), i + 1)
              
-            # for j in range(10):
+    
             
             # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force

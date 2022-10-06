@@ -13,8 +13,7 @@ class Trainer():
         self.env_name = env_name
         self.load_dataset_idx()
         print("Configs are: ","\n" , self.config)
-        self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path, self.split, self.idx_list)
-        print('trajectories: ', len(self.train_x))
+        
         # self.train_x, self.train_y, self.val_x, self.val_y  = h.generate_sin_dataset(50000, self.split)
         self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.reset_results()
@@ -46,7 +45,8 @@ class Trainer():
     def load_dataset_idx(self):
         dataset_idx = h.get_params("configs/dataset_index.yaml")
         entry = dataset_idx[self.env_name]
-        self.db_path = entry['db']
+        self.db_path_belief = entry['db_belief']
+        self.db_path_policy = entry['db_policy']
         self.obs_dim = len(entry['obs_dim'])
         self.acs_dim = entry['acs_dim']
         self.idx_list = entry['obs_dim']
