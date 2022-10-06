@@ -1,6 +1,6 @@
 InvertedPendulum-StateSpace:
-  db_belief: data/LQRKalman_demo_InvertedPendulum_belief.pickle
-  db_policy: data/LQRKalman_demo_InvertedPendulum_policy.pickle
+  db_belief: data/LQRKalman_demo_InvertedPendulum.pickle
+  db_policy: data/LQRKalman_demo_InvertedPendulum.pickle
   obs_dim: [0,1]
   acs_dim: 1
 

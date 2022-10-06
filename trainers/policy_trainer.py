@@ -11,7 +11,7 @@ from utils.pytorchtools import EarlyStopping
 from utils import helpers as h
 from utils.data_loader import DataLoader
 from eval_env import EvaluationEnvironment
-from models.GRUVAE import GRUVAE
+from models.auto_encoder import AutoEncoder
 from models.FF import FF
 from models.FFDO import FFDO
 
@@ -23,11 +23,11 @@ class PolicyTrainer(Trainer):
         print("Creating PolicyTrainer Object")
         self.train_x, self.train_y, self.val_x, self.val_y  = h.train_val_split(self.db_path_policy, self.split, self.idx_list)
         if self.prev_acs:
-            self.vae = GRUVAE(self.obs_dim + self.acs_dim, self.acs_dim, self.acs_encoding_dim,self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
+            self.ae = AutoEncoder(self.obs_dim + self.acs_dim, self.acs_dim, self.acs_encoding_dim,self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
         else:
-            self.vae = GRUVAE(self.obs_dim, self.acs_dim, self.acs_encoding_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
-        self.vae.load_state_dict(torch.load(self.vae_state_dict))
-        self.vae.eval()
+            self.ae = AutoEncoder(self.obs_dim, self.acs_dim, self.acs_encoding_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
+        self.ae.load_state_dict(torch.load(self.ae_state_dict))
+        self.ae.eval()
         self.model = FFDO(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
         self.init_optimizer()
             
@@ -49,7 +49,7 @@ class PolicyTrainer(Trainer):
                 future_acs = h.tm1_tpkm1(y, k)
                 past_acs = h.tmkm1_tm1(y, k)
 
-                pred, mu, log_sigma, _ = self.vae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
+                pred, mu, mu_list = self.ae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
                 acs = self.model(mu.detach())
                 loss = self.mse(acs, y[k+1:-k])
                 
@@ -67,7 +67,7 @@ class PolicyTrainer(Trainer):
                 
                 val_loss = self.eval(epoch)
                 self.writer.add_scalar("LossPOL/VAL", (val_loss), epoch + 1)   
-                stopper(val_loss, self.vae)
+                stopper(val_loss, self.model)
                 if stopper.early_stop:
                     print("Early stop")
                     break
@@ -79,14 +79,14 @@ class PolicyTrainer(Trainer):
         valid_loss = 0.0
        
         self.model.eval()
-        self.vae.eval()
+        self.ae.eval()
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
             future_acs = h.tm1_tpkm1(y, k)
             past_acs = h.tmkm1_tm1(y, k)
 
-            pred, mu, log_sigma, _ = self.vae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
+            pred, mu, mu_list = self.ae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
             
             acs = self.model(mu.detach())
             loss = self.mse(acs, y[k+1:-k])
@@ -103,13 +103,13 @@ class PolicyTrainer(Trainer):
         return avg_loss
 
     def eval_on_env(self):
-        eval_env = EvaluationEnvironment(self.vae, self.model, self.env_name, self.idx_list, self.config)
+        eval_env = EvaluationEnvironment(self.ae, self.model, self.env_name, self.idx_list, self.config)
         avg_reward = eval_env.eval_mjc()
         
         return avg_reward
 
     def eval_on_ss(self):
-        eval_env = EvaluationEnvironment(self.vae, self.model, self.env_name, self.idx_list, self.config)
+        eval_env = EvaluationEnvironment(self.ae, self.model, self.env_name, self.idx_list, self.config)
         eval_env.eval_ss()
 
 

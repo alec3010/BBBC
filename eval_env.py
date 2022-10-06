@@ -14,21 +14,20 @@ from utils import helpers as h
 from utils.LQR import LQR
 
 class EvaluationEnvironment:
-    def __init__(self, vae, policy, env_name, obs_idx_list, config) -> None:
+    def __init__(self, ae, policy, env_name, obs_idx_list, config) -> None:
         self.config = config
         self.writer = SummaryWriter(log_dir = "./tensorboard")
         self.belief_dim = config['belief_dim']
         self.env_name = env_name    
-        self.vae = vae
+        self.ae = ae
         self.policy = policy
         self.get_params()
         self.rendering = False                      
         self.n_test_episodes = 10
         self.idx_list = obs_idx_list
-        self.hidden = None #torch.cuda.DoubleTensor(1,self.belief_dim).fill_(0)
               
         
-        # load vae
+        # load ae
         
         
         
@@ -116,7 +115,7 @@ class EvaluationEnvironment:
 
         full_step = int(dt_control/dt_plant)
         steps = math.ceil(t_final/dt_control)
-        self.vae.test()   
+        self.ae.test()   
         self.policy.eval() 
         self.prev_ac = torch.cuda.FloatTensor([[0]])
 
@@ -128,26 +127,26 @@ class EvaluationEnvironment:
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
             z_cuda = torch.cuda.FloatTensor(z)  
-            mu_s, log_sigma_s, self.hidden = self.vae(obs=z_cuda, acs=self.prev_ac, hidden=self.hidden) # vae, pytorch
+            mu, mu_list = self.ae(z_cuda, self.prev_ac)
             
-            acs = self.policy(mu_s)
+            acs = self.policy(mu)
             self.prev_ac = acs
             assert not np.isnan(states_l).any()
               
-            sigma_s = np.reshape(torch.exp(log_sigma_s).detach().cpu().numpy(), (4,1))
             control_force = acs.detach().cpu().numpy()[0]
             self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
             self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
             self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
             self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
             self.writer.add_scalar("Test/States/Force", control_force, i + 1)
-            self.writer.add_scalar("Test/Means/x", mu_s.squeeze()[0].item(), i + 1)
-            self.writer.add_scalar("Test/Means/theta", mu_s.squeeze()[1].item(), i + 1)
-            self.writer.add_scalar("Test/Means/x_dot", mu_s.squeeze()[2].item(), i + 1)
-            self.writer.add_scalar("Test/Means/theta_dot", mu_s.squeeze()[3].item(), i + 1)
-             
-    
+            self.writer.add_scalar("Test/Means/x", mu.squeeze()[0].item(), i + 1)
+            self.writer.add_scalar("Test/Means/theta", mu.squeeze()[1].item(), i + 1)
+            self.writer.add_scalar("Test/Means/x_dot", mu.squeeze()[2].item(), i + 1)
+            self.writer.add_scalar("Test/Means/theta_dot", mu.squeeze()[3].item(), i + 1)
             
+            # for j in range(0, 2):
+    
+        
             # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             
@@ -165,8 +164,8 @@ class EvaluationEnvironment:
         step = 0
 
         state = self.env.reset()
-        #self.vae.reset_memory()
-        self.vae.eval()
+        #self.ae.reset_memory()
+        self.ae.eval()
         self.hidden = None
         while True:
         
@@ -178,7 +177,7 @@ class EvaluationEnvironment:
             input_ = torch.cuda.FloatTensor(obs).unsqueeze(0)   
 
         
-            _, mu, _, self.hidden = self.vae(input_, self.hidden) # vae, pytorc
+            _, mu, _, self.hidden = self.ae(input_, self.hidden) # ae, pytorc
             acs = self.policy(mu.detach())
             
             a = acs.detach().cpu().numpy()[0]
@@ -208,7 +207,7 @@ class EvaluationEnvironment:
         self.prev_acs = self.config['prev_acs']
 
     def reset_memory(self):
-        self.init_state = torch.cuda.DoubleTensor(self.vae.belief_dim).fill_(0)
+        self.init_state = torch.cuda.DoubleTensor(self.ae.belief_dim).fill_(0)
         self.init_ac = torch.cuda.DoubleTensor(self.acs_dim).fill_(0) 
         self.curr_ob = torch.cuda.DoubleTensor(self.obs_dim).fill_(0)
         self.curr_memory = {

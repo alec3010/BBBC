@@ -8,7 +8,7 @@ decoder_hidden : 32
 batch_size: 32
 acs_encoding_dim: 32
 epochs: 100
-vae_state_dict: "checkpoints/vae"
+ae_state_dict: "checkpoints/ae"
 policy_state_dict: "checkpoints/policy"
 eval_interval: 5 
 seq_length: 100

@@ -39,7 +39,7 @@ class Trainer():
         self.belief_dim = self.config['belief_dim']
         self.policy_hidden = self.config['policy_hidden']
         self.acs_encoding_dim = self.config['acs_encoding_dim']
-        self.vae_state_dict = self.config['vae_state_dict']
+        self.ae_state_dict = self.config['ae_state_dict']
         self.policy_state_dict = self.config['policy_state_dict']
 
     def load_dataset_idx(self):
