@@ -30,7 +30,6 @@ class Trainer():
         self.epochs = self.config['epochs']
         self.eval_int = self.config['eval_interval']
         self.batch_size = self.config['batch_size']
-        self.seq_length = self.config['seq_length']
         self.split = self.config['split']
         self.k = self.config['k']
         self.loss_weights = self.config['loss_weights']
