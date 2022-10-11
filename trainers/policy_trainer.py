@@ -13,7 +13,6 @@ from utils.data_loader import DataLoader
 from eval_env import EvaluationEnvironment
 from models.auto_encoder import AutoEncoder
 from models.FF import FF
-from models.FFDO import FFDO
 
 
 class PolicyTrainer(Trainer):
@@ -27,8 +26,8 @@ class PolicyTrainer(Trainer):
         else:
             self.ae = AutoEncoder(self.obs_dim, self.acs_dim, self.acs_encoding_dim, self.obs_dim, self.belief_dim, self.hidden_dim, self.decoder_hidden, self.k, self.prev_acs).cuda()
         self.ae.load_state_dict(torch.load(self.ae_state_dict))
-        self.ae.eval()
-        self.model = FFDO(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
+        self.ae.test()
+        self.model = FF(self.acs_dim, self.belief_dim, self.policy_hidden).cuda()
         self.init_optimizer()
             
     def train(self):
@@ -46,12 +45,12 @@ class PolicyTrainer(Trainer):
             
             for (x, y) in zip(self.train_x, self.train_y):
                 
-                future_acs = h.tm1_tpkm1(y, k)
-                past_acs = h.tmkm1_tm1(y, k)
-
-                pred, mu, mu_list = self.ae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
+                self.ae.init_hidden()
+                y_pad = h.zero_pad(y)
+                y_prev = y_pad[:-k-1]
+                mu, mu_list = self.ae(x[:-k], y_prev)
                 acs = self.model(mu.detach())
-                loss = self.mse(acs, y[k+1:-k])
+                loss = self.mse(acs, y[:-k])
                 
                 self.opt.zero_grad() # reset weights
                 loss.backward() # backprop
@@ -83,13 +82,15 @@ class PolicyTrainer(Trainer):
         k = self.k
         n_iters = 0
         for (x, y) in zip(self.val_x, self.val_y):
-            future_acs = h.tm1_tpkm1(y, k)
-            past_acs = h.tmkm1_tm1(y, k)
-
-            pred, mu, mu_list = self.ae(x[k+1:-k], y[k:-k-1], future_acs=future_acs, past_acs=past_acs)
+            # future_acs = torch.squeeze(h.tm1_tpkm1(y, k), 2)
+            # past_acs = torch.squeeze(h.tmkm1_tm1(y, k), 2)
+            y_pad = h.zero_pad(y)
+            y_prev = y_pad[:-k-1]
+            self.ae.init_hidden()
+            mu, mu_list = self.ae(x[:-k], y_prev)
             
             acs = self.model(mu.detach())
-            loss = self.mse(acs, y[k+1:-k])
+            loss = self.mse(acs, y[:-k])
             valid_loss += loss.item()
             n_iters += 1
 

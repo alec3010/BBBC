@@ -22,18 +22,16 @@ def train_val_split(pth, frac, idx_list):
 
     idx = int((1-frac) * n_samples)
     # split data into training and validation set
-    print("... splitting into train and val set")
     for traj in data['z']:
-        for idx, p in enumerate(traj):
+        for id, p in enumerate(traj):
             tmp = []
             for j in idx_list:
-
                 tmp.append(p[j])
-            traj[idx] = np.array(tmp)
+            traj[id] = np.array(tmp)
             
+    
     train_x_ = data['z'][idx:]
     train_y_ = data['y'][idx:]
-
     val_x_ = data['z'][:idx]
     val_y_ = data['y'][:idx]
     train_x = []
@@ -43,6 +41,7 @@ def train_val_split(pth, frac, idx_list):
     for x in train_x_:
         tmp_x = np.array(x)
         train_x.append(torch.Tensor(tmp_x).squeeze().cuda())
+        
     for y in train_y_:
         tmp_y = np.array(y)
         train_y.append(torch.Tensor(tmp_y).cuda())
@@ -72,42 +71,47 @@ def add_noise(states):
 
 
 
-def get_pred_labels(x, y, k):
-    labels = {}
-    labels['reconstruction'] = x[k+1:-k, :]
-    labels['obs_one_fwd'] = x[k+1:-k,:]
-    labels['obs_one_bwd'] = x[k:-k-1,:]
-    labels['obs_k_fwd'] = x[2*k+1:,:]
-    labels['obs_k_bwd'] = x[:-2*k-1,:]
-    labels['acs_1_fwd'] = y[k:-k-1]
-    tmp = tm1_tpkm1(y, k)
-    labels['acs_k_fwd'] = tmp.squeeze(2)
-    return labels
-
 # def get_pred_labels(x, y, k):
 #     labels = {}
-#     labels['reconstruction'] = x[k:-k, :]
-#     labels['obs_one_fwd'] = x[k+1:-k+1,:]
-#     labels['obs_one_bwd'] = x[k-1:-k-1,:]
-#     labels['obs_k_fwd'] = x[2*k:,:]
-#     labels['obs_k_bwd'] = x[:-2*k,:]
-#     labels['acs_1_fwd'] = y[k:-k]
-#     tmp = tm1_tpkm1(y, k)
+#     labels['reconstruction'] = x[k+1:-k, :]
+#     labels['obs_one_fwd'] = x[k+1:-k,:]
+#     labels['obs_one_bwd'] = x[k:-k-1,:]
+#     labels['obs_k_fwd'] = x[2*k+1:,:]
+#     labels['obs_k_bwd'] = x[:-2*k-1,:]
+#     labels['acs_1_fwd'] = y[k:-k-1]
+#     tmp = t_tpk(y, k)
 #     labels['acs_k_fwd'] = tmp.squeeze(2)
 #     return labels
 
-def tm1_tpkm1(s, k):
+def get_pred_labels(x, y, k):
+    labels = {}
+    labels['reconstruction'] = x[:-k, :]
+    # labels['obs_one_fwd'] = x[k+1:-k+1,:]
+    # labels['obs_one_bwd'] = x[k-1:-k-1,:]
+    labels['obs_k_fwd'] = x[k:,:]
+    labels['obs_k_bwd'] = x[:-k,:]
+    # labels['acs_1_fwd'] = y[k:-k]
+    # tmp = t_tpk(y, k)
+    # labels['acs_k_fwd'] = tmp.squeeze(2)
+    return labels
+
+def t_tpk(s, k):
     future_k = []
-    for t in range(k+1, s.size(0)-k):
-        future_k.append(s[t-1:t+k])
+    padding = torch.zeros(1, 1).cuda()
+    padded_s = torch.cat((padding, s), dim=0)
+    for t in range(1, s.size(0)-k+1):
+        future_k.append(padded_s[t-1:t+k-1])
     stacked = torch.stack(future_k, dim = 0)
     return stacked
    
 
-def tmkm1_tm1(s, k):
+def tmk_t(s, k):
     past_k = []
-    for t in range(k+1, s.size(0)-k):
-        past_k.append(s[t-k-1:t])
+    padding = torch.zeros(k, 1).cuda()
+    padded_s = torch.cat((padding, s), dim=0)
+    
+    for t in range(k, padded_s.size(0)-k):
+        past_k.append(padded_s[t-k+1:t+1])
     stacked = torch.stack(past_k, dim = 0)
     return stacked
 

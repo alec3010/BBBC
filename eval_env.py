@@ -44,10 +44,10 @@ class EvaluationEnvironment:
 
     def eval_ss(self):
         self.hidden = None
-        t_final      = 10
+        t_final      = 3
 
-        dt_plant     = 0.1
-        dt_control   = 0.1
+        dt_plant     = 0.01
+        dt_control   = 0.01
 
         t_plant   = np.arange(0, t_final, dt_plant)
         t_control = np.arange(0, t_final, dt_control)
@@ -115,9 +115,11 @@ class EvaluationEnvironment:
 
         full_step = int(dt_control/dt_plant)
         steps = math.ceil(t_final/dt_control)
-        self.ae.test()   
+        if not self.ae.testing:
+            self.ae.test()   
+        self.ae.init_hidden()
         self.policy.eval() 
-        self.prev_ac = torch.cuda.FloatTensor([[0]])
+        prev_ac = torch.cuda.FloatTensor([[0]])
 
         print('starting eval loop')   
 
@@ -127,31 +129,32 @@ class EvaluationEnvironment:
             measurement = h.add_noise(states_l)
             z = np.array([[ measurement[0,0], measurement[1,0]]])
             z_cuda = torch.cuda.FloatTensor(z)  
-            mu, mu_list = self.ae(z_cuda, self.prev_ac)
+            mu, mu_list = self.ae(z_cuda, prev_ac)
             
             acs = self.policy(mu)
-            self.prev_ac = acs
+            prev_ac = acs
             assert not np.isnan(states_l).any()
               
             control_force = acs.detach().cpu().numpy()[0]
-            self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
-            self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
-            self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
-            self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
+            
             self.writer.add_scalar("Test/States/Force", control_force, i + 1)
             self.writer.add_scalar("Test/Means/x", mu.squeeze()[0].item(), i + 1)
             self.writer.add_scalar("Test/Means/theta", mu.squeeze()[1].item(), i + 1)
             self.writer.add_scalar("Test/Means/x_dot", mu.squeeze()[2].item(), i + 1)
             self.writer.add_scalar("Test/Means/theta_dot", mu.squeeze()[3].item(), i + 1)
             
-            # for j in range(0, 2):
+            # for j in range(0, full_step):
     
-        
-            # Update states with ss eqs
+                
+                # Update states with ss eqs
             states = np.matmul(A_discrete, states_l) + B_discrete*control_force
             
             # Store info for next iteration
             states_l = states
+            self.writer.add_scalar("Test/States/x", states_l[0], i + 1)
+            self.writer.add_scalar("Test/States/theta", states_l[1], i + 1)
+            self.writer.add_scalar("Test/States/x_dot", states_l[2], i + 1)
+            self.writer.add_scalar("Test/States/theta_dot", states_l[3], i + 1)
                 
 
             

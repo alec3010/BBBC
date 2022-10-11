@@ -7,13 +7,13 @@ policy_hidden: 32 #16
 decoder_hidden : 32
 batch_size: 32
 acs_encoding_dim: 32
-epochs: 100
+epochs: 300
 ae_state_dict: "checkpoints/ae"
 policy_state_dict: "checkpoints/policy"
 eval_interval: 5 
 seq_length: 100
 k: 5
-split: 0.9
+split: 0.8
 loss_weights:
   reconstruction: 1
   obs_one_fwd: 1
@@ -22,4 +22,3 @@ loss_weights:
   obs_k_bwd: 1
   acs_1_fwd: 1
   acs_k_fwd: 1
-  kld: 0.1

@@ -1,16 +1,14 @@
 import torch.nn as nn
 
-class FFDO(nn.Module):
+class Decoder(nn.Module):
     def __init__(self, Dout, Din, hidden):
-        super(FFDO,self).__init__()
+        super(Decoder,self).__init__()
 
         self.model = nn.Sequential(
             nn.Linear(Din, hidden),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
             nn.Linear(hidden, hidden),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
             nn.Linear(hidden, Dout)
             
         )
