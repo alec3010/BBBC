@@ -109,7 +109,7 @@ class AETrainer(Trainer):
         # avg_acs_1fwd_loss = round(valid_loss_acs_1fwd/n_iters, 6)
         # avg_acs_kfwd_loss = round(valid_loss_acs_kfwd/n_iters, 6)
         epoch_str = h.epoch_str(epoch)
-        print('VAE {}|| TOT: {} || OBS || REC: {} | 1FWD: N/A | 1BWD: N/A | KFWD: {} | KBWD: {} | ACS || 1FWD: N/A | KFWD: N/A'\
+        print('VAE {}|| TOT: {} || OBS || REC: {} | KFWD: {} | KBWD: {} '\
             .format(epoch_str, 
                     avg_loss, 
                     avg_rec_loss,
@@ -119,13 +119,8 @@ class AETrainer(Trainer):
         
         self.writer.add_scalar("LossVAE/VAL", (avg_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/REC", (avg_rec_loss), epoch + 1)
-        # self.writer.add_scalar("LossVAE/OBS/1FWD", (avg_obs_1fwd_loss), epoch + 1)
-        # self.writer.add_scalar("LossVAE/OBS/1BWD", (avg_obs_1bwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/OBS/KFWD", (avg_obs_kfwd_loss), epoch + 1)
         self.writer.add_scalar("LossVAE/OBS/KBWD", (avg_obs_kbwd_loss), epoch + 1)
-        # self.writer.add_scalar("LossVAE/ACS/1FWD", (avg_acs_1fwd_loss), epoch + 1)
-        # self.writer.add_scalar("LossVAE/ACS/KFWD", (avg_acs_kfwd_loss), epoch + 1)
-        # self.result_dict['val_loss']['value'].append(avg_loss)
 
         self.model.train()
 
