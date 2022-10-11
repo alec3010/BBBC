@@ -12,6 +12,4 @@ if __name__ == "__main__":
     env = "InvertedPendulum-StateSpace"
     vae_t = AETrainer(env, configs=configs)
     vae_t.train()
-    pol_t = PolicyTrainer(env, configs=configs)
-    pol_t.train()
-    
+
